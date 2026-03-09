@@ -1,0 +1,186 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// System users (login accounts)
+model User {
+  id            String    @id @default(cuid())
+  username      String    @unique
+  passwordHash  String    @map("password_hash")
+  role          UserRole
+  employeeId    String?   @unique @map("employee_id")
+  status        String    @default("active")
+  lastLogin     DateTime? @map("last_login")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  employee   Employee?   @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  shiftAssignmentsGiven ShiftAssignment[] @relation("AssignedBy")
+
+  @@map("users")
+}
+
+enum UserRole {
+  admin
+  manager
+  staff
+}
+
+// Employee records (never deleted - use status = inactive)
+model Employee {
+  id            String    @id @default(cuid())
+  firstName     String    @map("first_name")
+  lastName      String    @map("last_name")
+  email         String    @unique
+  phone         String?
+  dateOfBirth   DateTime? @map("date_of_birth")
+  hireDate      DateTime  @map("hire_date")
+  departmentId  String?   @map("department_id")
+  positionId    String?   @map("position_id")
+  status        EmployeeStatus @default(active)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  department Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  position   Position?   @relation(fields: [positionId], references: [id], onDelete: SetNull)
+  user       User?
+  shiftAssignments ShiftAssignment[]
+  attendance  Attendance[]
+  attendanceEdits  AttendanceEdit[] @relation("EditedBy")
+  employeeTrainings EmployeeTraining[]
+
+  @@map("employees")
+}
+
+enum EmployeeStatus {
+  active
+  inactive
+}
+
+model Department {
+  id          String   @id @default(cuid())
+  name        String   @unique @map("department_name")
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  employees Employee[]
+
+  @@map("departments")
+}
+
+model Position {
+  id          String  @id @default(cuid())
+  name        String  @unique @map("position_name")
+  description String?
+
+  employees Employee[]
+
+  @@map("positions")
+}
+
+model Shift {
+  id            String   @id @default(cuid())
+  name          String   @unique @map("shift_name")
+  startTime     String   @map("start_time")  // e.g. "09:00"
+  endTime       String   @map("end_time")    // e.g. "17:00"
+  requiredStaff Int      @default(1) @map("required_staff")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  assignments ShiftAssignment[]
+
+  @@map("shifts")
+}
+
+model ShiftAssignment {
+  id         String   @id @default(cuid())
+  employeeId String   @map("employee_id")
+  shiftId    String   @map("shift_id")
+  workDate   DateTime @map("work_date") @db.Date
+  assignedById String? @map("assigned_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  employee  Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  shift     Shift    @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  assignedBy User?   @relation("AssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+
+  @@unique([employeeId, shiftId, workDate])
+  @@map("shift_assignments")
+}
+
+model Attendance {
+  id         String   @id @default(cuid())
+  employeeId String   @map("employee_id")
+  workDate   DateTime @map("work_date") @db.Date
+  checkIn    DateTime? @map("check_in")
+  checkOut   DateTime? @map("check_out")
+  status     String   @default("pending") // pending | present | absent | late
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  edits    AttendanceEdit[]
+
+  @@unique([employeeId, workDate])
+  @@map("attendance")
+}
+
+model AttendanceEdit {
+  id           String   @id @default(cuid())
+  attendanceId String   @map("attendance_id")
+  editedById   String   @map("edited_by")
+  oldCheckIn   DateTime? @map("old_check_in")
+  oldCheckOut  DateTime? @map("old_check_out")
+  newCheckIn   DateTime? @map("new_check_in")
+  newCheckOut  DateTime? @map("new_check_out")
+  editReason   String?  @map("edit_reason")
+  editedAt     DateTime @default(now()) @map("edited_at")
+
+  attendance Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+  editedBy   Employee   @relation("EditedBy", fields: [editedById], references: [id], onDelete: Cascade)
+
+  @@map("attendance_edits")
+}
+
+model Training {
+  id          String    @id @default(cuid())
+  title       String    @map("training_title")
+  description String?
+  deadline    DateTime?
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  employeeTrainings EmployeeTraining[]
+
+  @@map("trainings")
+}
+
+model EmployeeTraining {
+  id             String   @id @default(cuid())
+  employeeId     String   @map("employee_id")
+  trainingId     String   @map("training_id")
+  status         TrainingStatus @default(pending)
+  completionDate DateTime? @map("completion_date")
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  training Training @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, trainingId])
+  @@map("employee_training")
+}
+
+enum TrainingStatus {
+  pending
+  completed
+}
+
+model HrDocument {
+  id         String   @id @default(cuid())
+  title      String
+  fileUrl    String   @map("file_url")
+  approvedBy String?  @map("approved_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("hr_documents")
+}
