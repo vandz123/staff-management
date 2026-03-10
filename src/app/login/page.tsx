@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -22,8 +23,8 @@ export default function LoginPage() {
     setError("");
     setSubmitting(true);
     try {
-      await login(username, password);
-      router.replace("/dashboard");
+      const userData = await login(username, password);
+      router.replace(userData.mustChangePassword ? "/change-password" : "/dashboard");
     } catch (err: unknown) {
       setError((err as { response?: { data?: { error?: string } } })?.response?.data?.error || "Login failed");
     } finally {
@@ -38,7 +39,7 @@ export default function LoginPage() {
         <p className="mb-6 text-slate-500">Sign in to your account</p>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Username</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Username / Email</label>
             <input
               type="text"
               value={username}
@@ -58,6 +59,14 @@ export default function LoginPage() {
             />
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
+          <div className="text-right">
+            <Link
+              href="/forgot-password"
+              className="text-sm text-primary-600 hover:text-primary-700"
+            >
+              Forgot Password?
+            </Link>
+          </div>
           <button
             type="submit"
             disabled={submitting}

@@ -30,7 +30,7 @@ async function main() {
 
   const adminEmp = await prisma.employee.upsert({
     where: { email: "admin@company.com" },
-    update: {},
+    update: { baseSalary: 20000000, annualLeaveBalance: 12 },
     create: {
       firstName: "Admin",
       lastName: "User",
@@ -38,6 +38,8 @@ async function main() {
       hireDate: new Date(),
       departmentId: hr.id,
       positionId: managerPos.id,
+      baseSalary: 20000000,
+      annualLeaveBalance: 12,
     },
   });
   await prisma.user.upsert({
@@ -53,7 +55,7 @@ async function main() {
 
   const managerEmp = await prisma.employee.upsert({
     where: { email: "manager@company.com" },
-    update: {},
+    update: { baseSalary: 18000000, annualLeaveBalance: 12 },
     create: {
       firstName: "Manager",
       lastName: "User",
@@ -61,6 +63,8 @@ async function main() {
       hireDate: new Date(),
       departmentId: ops.id,
       positionId: managerPos.id,
+      baseSalary: 18000000,
+      annualLeaveBalance: 12,
     },
   });
   await prisma.user.upsert({
@@ -76,7 +80,7 @@ async function main() {
 
   const staffEmp = await prisma.employee.upsert({
     where: { email: "staff@company.com" },
-    update: {},
+    update: { baseSalary: 15000000, annualLeaveBalance: 12 },
     create: {
       firstName: "Staff",
       lastName: "User",
@@ -84,6 +88,8 @@ async function main() {
       hireDate: new Date(),
       departmentId: ops.id,
       positionId: staffPos.id,
+      baseSalary: 15000000,
+      annualLeaveBalance: 12,
     },
   });
   await prisma.user.upsert({

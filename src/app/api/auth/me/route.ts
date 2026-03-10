@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
     username: user.username,
     role: user.role,
     employeeId: user.employeeId,
+    mustChangePassword: user.mustChangePassword ?? false,
     employee: user.employee
       ? {
           id: user.employee.id,

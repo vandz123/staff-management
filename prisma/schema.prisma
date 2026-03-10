@@ -9,19 +9,44 @@ datasource db {
 
 // System users (login accounts)
 model User {
-  id            String    @id @default(cuid())
-  username      String    @unique
-  passwordHash  String    @map("password_hash")
-  role          UserRole
-  employeeId    String?   @unique @map("employee_id")
-  status        String    @default("active")
-  lastLogin     DateTime? @map("last_login")
-  createdAt     DateTime  @default(now()) @map("created_at")
+  id               String    @id @default(cuid())
+  username         String    @unique
+  passwordHash     String    @map("password_hash")
+  role             UserRole
+  employeeId       String?   @unique @map("employee_id")
+  status           String    @default("active") // active | inactive | locked
+  lastLogin        DateTime? @map("last_login")
+  loginAttempts    Int       @default(0) @map("login_attempts")
+  lockedUntil      DateTime? @map("locked_until")
+  mustChangePassword Boolean @default(false) @map("must_change_password")
+  createdAt        DateTime  @default(now()) @map("created_at")
 
   employee   Employee?   @relation(fields: [employeeId], references: [id], onDelete: SetNull)
   shiftAssignmentsGiven ShiftAssignment[] @relation("AssignedBy")
+  passwordResetRequests PasswordResetRequest[]
+  passwordResetApprovals PasswordResetRequest[] @relation("PasswordResetApprovals")
+  leaveApprovals LeaveRequest[] @relation("LeaveApprovals")
+  overtimeApprovals OvertimeRequest[] @relation("OvertimeApprovals")
+  attendanceCorrectionApprovals AttendanceCorrectionRequest[] @relation("AttendanceCorrectionApprovals")
 
   @@map("users")
+}
+
+model PasswordResetRequest {
+  id                 String    @id @default(cuid())
+  userId             String    @map("user_id")
+  requestReason      String?   @map("request_reason")
+  requestTime        DateTime  @default(now()) @map("request_time")
+  approvedById       String?   @map("approved_by")
+  approvedTime       DateTime? @map("approved_time")
+  status             String    @default("pending") // pending | approved | rejected
+  generatedPassword  String?   @map("generated_password")
+  tempPasswordExpiry DateTime? @map("temp_password_expiry")
+
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  approvedBy User? @relation("PasswordResetApprovals", fields: [approvedById], references: [id], onDelete: SetNull)
+
+  @@map("password_reset_requests")
 }
 
 enum UserRole {
@@ -42,6 +67,8 @@ model Employee {
   departmentId  String?   @map("department_id")
   positionId    String?   @map("position_id")
   status        EmployeeStatus @default(active)
+  baseSalary    Int?      @map("base_salary") // monthly salary in VND
+  annualLeaveBalance Int  @default(12) @map("annual_leave_balance")
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
@@ -52,8 +79,65 @@ model Employee {
   attendance  Attendance[]
   attendanceEdits  AttendanceEdit[] @relation("EditedBy")
   employeeTrainings EmployeeTraining[]
+  leaveRequests LeaveRequest[]
+  overtimeRequests OvertimeRequest[]
+  attendanceCorrectionRequests AttendanceCorrectionRequest[]
 
   @@map("employees")
+}
+
+model LeaveRequest {
+  id          String   @id @default(cuid())
+  employeeId  String   @map("employee_id")
+  leaveType   String   @map("leave_type") // annual | sick | unpaid | emergency
+  startDate   DateTime @map("start_date") @db.Date
+  endDate     DateTime @map("end_date") @db.Date
+  reason      String?
+  status      String   @default("pending") // pending | approved | rejected
+  approvedById String? @map("approved_by")
+  approvedAt  DateTime? @map("approved_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  approvedBy  User?    @relation("LeaveApprovals", fields: [approvedById], references: [id], onDelete: SetNull)
+
+  @@map("leave_requests")
+}
+
+model OvertimeRequest {
+  id          String   @id @default(cuid())
+  employeeId  String   @map("employee_id")
+  workDate    DateTime @map("work_date") @db.Date
+  hours       Float    @map("hours")
+  reason      String?
+  status      String   @default("pending") // pending | approved | rejected
+  approvedById String? @map("approved_by")
+  approvedAt  DateTime? @map("approved_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  approvedBy  User?    @relation("OvertimeApprovals", fields: [approvedById], references: [id], onDelete: SetNull)
+
+  @@map("overtime_requests")
+}
+
+model AttendanceCorrectionRequest {
+  id            String   @id @default(cuid())
+  employeeId    String   @map("employee_id")
+  attendanceId  String   @map("attendance_id")
+  requestedCheckIn  DateTime? @map("requested_check_in")
+  requestedCheckOut DateTime? @map("requested_check_out")
+  reason        String?
+  status        String   @default("pending") // pending | approved | rejected
+  approvedById  String?  @map("approved_by")
+  approvedAt    DateTime? @map("approved_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  employee    Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  attendance  Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+  approvedBy  User?      @relation("AttendanceCorrectionApprovals", fields: [approvedById], references: [id], onDelete: SetNull)
+
+  @@map("attendance_correction_requests")
 }
 
 enum EmployeeStatus {
@@ -122,6 +206,7 @@ model Attendance {
 
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   edits    AttendanceEdit[]
+  correctionRequests AttendanceCorrectionRequest[]
 
   @@unique([employeeId, workDate])
   @@map("attendance")

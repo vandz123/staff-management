@@ -8,6 +8,7 @@ type User = {
   username: string;
   role: "admin" | "manager" | "staff";
   employeeId?: string;
+  mustChangePassword?: boolean;
   employee?: {
     id: string;
     firstName: string;
@@ -19,7 +20,7 @@ type User = {
 type AuthContextType = {
   user: User | null;
   loading: boolean;
-  login: (username: string, password: string) => Promise<void>;
+  login: (usernameOrEmail: string, password: string) => Promise<User>;
   logout: () => void;
 };
 
@@ -47,11 +48,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .finally(() => setLoading(false));
   }, []);
 
-  const login = async (username: string, password: string) => {
-    const { data } = await api.post("/auth/login", { username, password });
+  const login = async (usernameOrEmail: string, password: string) => {
+    const { data } = await api.post("/auth/login", {
+      username: usernameOrEmail,
+      password,
+    });
     localStorage.setItem("token", data.token);
     localStorage.setItem("user", JSON.stringify(data.user));
     setUser(data.user);
+    return data.user;
   };
 
   const logout = () => {

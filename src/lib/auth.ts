@@ -10,6 +10,7 @@ export type JWTPayload = {
   username: string;
   role: "admin" | "manager" | "staff";
   employeeId?: string;
+  mustChangePassword?: boolean;
 };
 
 export async function hashPassword(password: string): Promise<string> {
@@ -35,4 +36,31 @@ export async function verifyToken(token: string): Promise<JWTPayload | null> {
   } catch {
     return null;
   }
+}
+
+/** Generate a random temporary password: 8 chars, uppercase, lowercase, number, symbol */
+export function generateTempPassword(): string {
+  const uppercase = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lowercase = "abcdefghjkmnpqrstuvwxyz";
+  const numbers = "23456789";
+  const symbols = "@#$%";
+  const pick = (arr: string, n: number) =>
+    Array.from({ length: n }, () => arr[Math.floor(Math.random() * arr.length)]).join("");
+  return (
+    pick(uppercase, 2) +
+    pick(lowercase, 3) +
+    pick(numbers, 2) +
+    pick(symbols, 1)
+  )
+    .split("")
+    .sort(() => Math.random() - 0.5)
+    .join("");
+}
+
+/** Validate password meets rules: min 8 chars, 1 number, 1 uppercase */
+export function validatePasswordRules(password: string): { valid: boolean; message?: string } {
+  if (password.length < 8) return { valid: false, message: "Minimum 8 characters required" };
+  if (!/[0-9]/.test(password)) return { valid: false, message: "At least one number required" };
+  if (!/[A-Z]/.test(password)) return { valid: false, message: "At least one uppercase letter required" };
+  return { valid: true };
 }
