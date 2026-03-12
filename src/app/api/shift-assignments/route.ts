@@ -37,8 +37,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(assignments);
   }
 
-  const date = new Date(workDate);
-  date.setHours(0, 0, 0, 0);
+  const date = new Date(workDate + "T00:00:00.000Z");
 
   let assignments = await prisma.shiftAssignment.findMany({
     where: { workDate: date },
@@ -69,8 +68,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const date = new Date(workDate);
-  date.setHours(0, 0, 0, 0);
+  const date = new Date(workDate + "T00:00:00.000Z");
 
   const shift = await prisma.shift.findUnique({ where: { id: shiftId } });
   if (!shift) return NextResponse.json({ error: "Shift not found" }, { status: 404 });

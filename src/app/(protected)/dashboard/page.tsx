@@ -369,7 +369,7 @@ export default function DashboardPage() {
           <section className="mt-8">
             <h2 className="mb-3 text-lg font-semibold text-slate-700">Shift Coverage Warning</h2>
             <div className="rounded-xl border border-red-200 bg-red-50 p-4">
-              {data.shiftCoverageWarning.map((s, i) => (
+              {data.shiftCoverageWarning?.map((s, i) => (
                 <p key={i} className="text-red-800">
                   {s.name}: {s.assigned}/{s.required} assigned — missing {s.required - s.assigned}
                 </p>

@@ -263,6 +263,8 @@ enum TrainingStatus {
 model HrDocument {
   id         String   @id @default(cuid())
   title      String
+  content    String?  @db.Text
+  category   String?  // e.g. "HR Policies", "Workplace Rules", "Compensation"
   fileUrl    String   @map("file_url")
   approvedBy String?  @map("approved_by")
   createdAt  DateTime @default(now()) @map("created_at")

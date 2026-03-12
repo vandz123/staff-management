@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import api from "@/lib/api";
 import { format, subDays } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
-import { TrendingUp, Clock, DollarSign } from "lucide-react";
+import { TrendingUp, Clock, DollarSign, AlertTriangle } from "lucide-react";
 
 type Attendance = {
   id: string;
@@ -31,6 +31,12 @@ type PayrollSummary = {
   dailyBreakdown: Array<{ date: string; hours: number; overtime: number; regular: number }>;
 };
 
+type MyShift = {
+  shiftName: string;
+  shiftStartTime: string;
+  shiftEndTime: string;
+};
+
 export default function AttendancePage() {
   const { user } = useAuth();
   const [attendance, setAttendance] = useState<Attendance[]>([]);
@@ -41,6 +47,10 @@ export default function AttendancePage() {
   const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
   const [employees, setEmployees] = useState<Array<{ id: string; firstName: string; lastName: string }>>([]);
+  const [savingAttendance, setSavingAttendance] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [myShift, setMyShift] = useState<MyShift | null>(null);
+  const [showEarlyCheckoutModal, setShowEarlyCheckoutModal] = useState(false);
 
   const isStaffView = user?.role === "staff" && user?.employeeId;
   const canSelectEmployee = (user?.role === "admin" || user?.role === "manager") && !isStaffView;
@@ -80,6 +90,85 @@ export default function AttendancePage() {
       .then((r) => setPayroll(r.data))
       .catch(() => setPayroll(null));
   }, [isStaffView, canSelectEmployee, selectedEmployeeId, viewMode, date, startDate, endDate]);
+
+  // Fetch today's shift for staff
+  useEffect(() => {
+    if (!isStaffView) return;
+    api
+      .get<MyShift | null>("/attendance/my-shift")
+      .then((r) => setMyShift(r.data))
+      .catch(() => setMyShift(null));
+  }, [isStaffView]);
+
+  const isBeforeShiftEnd = (): boolean => {
+    if (!myShift?.shiftEndTime) return false;
+    const [h, m] = myShift.shiftEndTime.split(":").map(Number);
+    const now = new Date();
+    const shiftEnd = new Date();
+    shiftEnd.setHours(h, m, 0, 0);
+    return now < shiftEnd;
+  };
+
+  const handleCheckInOut = async (action: "checkIn" | "checkOut") => {
+    if (!user?.employeeId) return;
+
+    // If checking out early, show confirmation modal instead of proceeding
+    if (action === "checkOut" && isBeforeShiftEnd()) {
+      setShowEarlyCheckoutModal(true);
+      return;
+    }
+
+    await performCheckInOut(action);
+  };
+
+  const performCheckInOut = async (action: "checkIn" | "checkOut") => {
+    if (!user?.employeeId) return;
+    setSavingAttendance(true);
+    setSaveError(null);
+    try {
+      const payload: Record<string, string> = {
+        employeeId: user.employeeId,
+        workDate: date,
+      };
+      const now = new Date().toISOString();
+      if (action === "checkIn") {
+        payload.checkIn = now;
+      } else {
+        payload.checkOut = now;
+      }
+      await api.post("/attendance", payload);
+
+      const params: Record<string, string> =
+        viewMode === "single" ? { workDate: date } : { start: startDate, end: endDate };
+      params.employeeId = user.employeeId;
+      const [attRes, payRes] = await Promise.all([
+        api.get<Attendance[]>("/attendance", { params }),
+        api
+          .get<PayrollSummary>("/attendance/payroll-summary", {
+            params: { start: startDate, end: endDate },
+          })
+          .catch(() => ({ data: null as unknown as PayrollSummary })),
+      ]);
+      setAttendance(attRes.data);
+      if (payRes.data) {
+        setPayroll(payRes.data);
+      }
+    } catch (err) {
+      console.error(err);
+      setSaveError("Failed to update attendance. Please try again.");
+    } finally {
+      setSavingAttendance(false);
+    }
+  };
+
+  const todayIso = format(new Date(), "yyyy-MM-dd");
+  const isTodaySelected = viewMode === "single" && date === todayIso;
+  const staffTodayRecord =
+    isStaffView && isTodaySelected
+      ? attendance.find(
+          (a) => a.employeeId === user?.employeeId && a.workDate.startsWith(todayIso),
+        )
+      : undefined;
 
   return (
     <div>
@@ -134,6 +223,96 @@ export default function AttendancePage() {
           )}
         </div>
       </div>
+
+      {isStaffView && isTodaySelected && (
+        <div className="mb-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-800">Today&apos;s Attendance</h2>
+              <p className="text-xs text-slate-500">
+                {format(new Date(), "EEEE, d MMM yyyy")}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {!staffTodayRecord || !staffTodayRecord.checkIn ? (
+                <button
+                  onClick={() => handleCheckInOut("checkIn")}
+                  disabled={savingAttendance}
+                  className="rounded bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
+                >
+                  {savingAttendance ? "Saving..." : "Check In"}
+                </button>
+              ) : !staffTodayRecord.checkOut ? (
+                <button
+                  onClick={() => handleCheckInOut("checkOut")}
+                  disabled={savingAttendance}
+                  className="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                >
+                  {savingAttendance ? "Saving..." : "Check Out"}
+                </button>
+              ) : (
+                <span className="text-sm text-emerald-700">
+                  You have completed today&apos;s attendance.
+                </span>
+              )}
+            </div>
+          </div>
+          {staffTodayRecord && (
+            <p className="mt-2 text-xs text-slate-500">
+              Check-in:{" "}
+              {staffTodayRecord.checkIn
+                ? format(new Date(staffTodayRecord.checkIn), "HH:mm")
+                : "—"}{" "}
+              · Check-out:{" "}
+              {staffTodayRecord.checkOut
+                ? format(new Date(staffTodayRecord.checkOut), "HH:mm")
+                : "—"}
+            </p>
+          )}
+          {saveError && <p className="mt-2 text-xs text-red-600">{saveError}</p>}
+        </div>
+      )}
+
+      {/* Early Checkout Confirmation Modal */}
+      {showEarlyCheckoutModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="mx-4 w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100">
+                <AlertTriangle className="h-5 w-5 text-amber-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-slate-800">Early Checkout</h3>
+            </div>
+            <p className="mb-2 text-sm text-slate-600">
+              Your shift{myShift?.shiftName ? ` (${myShift.shiftName})` : ""} ends at{" "}
+              <span className="font-semibold text-slate-800">{myShift?.shiftEndTime}</span>, but you
+              are checking out at{" "}
+              <span className="font-semibold text-slate-800">{format(new Date(), "HH:mm")}</span>.
+            </p>
+            <p className="mb-6 text-sm text-amber-700 font-medium">
+              You will not be working the full shift. Do you still want to check out?
+            </p>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => setShowEarlyCheckoutModal(false)}
+                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  setShowEarlyCheckoutModal(false);
+                  await performCheckInOut("checkOut");
+                }}
+                disabled={savingAttendance}
+                className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+              >
+                {savingAttendance ? "Checking out..." : "Check Out Anyway"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {payroll && (
         <div className="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">

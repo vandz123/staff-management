@@ -14,6 +14,11 @@ type Employee = {
   status: string;
   department?: { name: string } | null;
   position?: { name: string } | null;
+  user?: {
+    role: "admin" | "manager" | "staff";
+    username: string;
+    status: string;
+  } | null;
 };
 
 export default function EmployeesPage() {
@@ -58,7 +63,8 @@ export default function EmployeesPage() {
           status: data.status,
         });
       } else {
-        await api.post("/employees", {
+        const createLogin = data.createLogin === "on";
+        const response = await api.post("/employees", {
           firstName: data.firstName,
           lastName: data.lastName,
           email: data.email,
@@ -66,7 +72,24 @@ export default function EmployeesPage() {
           hireDate: data.hireDate || new Date().toISOString().slice(0, 10),
           departmentId: data.departmentId || null,
           positionId: data.positionId || null,
+          baseSalary: data.baseSalary ? Number(data.baseSalary) : undefined,
+          role: data.role,
+          username: data.username || undefined,
+          createLogin,
         });
+
+        const created = response.data as {
+          employee: Employee;
+          login?: { username: string; tempPassword: string; role: string } | null;
+        };
+
+        if (created.login) {
+          alert(
+            `Login account created:\n\nUsername: ${created.login.username}\nTemporary password: ${created.login.tempPassword}\nRole: ${created.login.role}\n\nAsk the employee to change this password after first login.`
+          );
+        } else if (createLogin) {
+          alert("Could not create login account automatically. Please check the server logs.");
+        }
       }
       setShowForm(false);
       setEditing(null);
@@ -115,6 +138,16 @@ export default function EmployeesPage() {
             <input name="email" type="email" placeholder="Email" required defaultValue={editing?.email} className="rounded border px-3 py-2" />
             <input name="phone" placeholder="Phone" defaultValue={editing ? (editing as Employee & { phone?: string }).phone : undefined} className="rounded border px-3 py-2" />
             {!editing && <input name="hireDate" type="date" required className="rounded border px-3 py-2" />}
+            {!editing && (
+              <input
+                name="baseSalary"
+                type="number"
+                min="0"
+                step="100000"
+                placeholder="Base salary (VND/month)"
+                className="rounded border px-3 py-2"
+              />
+            )}
             <select name="departmentId" className="rounded border px-3 py-2">
               <option value="">Select department</option>
               {departments.map((d) => (
@@ -131,6 +164,33 @@ export default function EmployeesPage() {
                 </option>
               ))}
             </select>
+            {!editing && (
+              <select name="role" className="rounded border px-3 py-2" required>
+                <option value="staff">Staff</option>
+                <option value="manager">Manager</option>
+              </select>
+            )}
+            {!editing && (
+              <>
+                <div className="flex items-center gap-2">
+                  <input
+                    id="createLogin"
+                    name="createLogin"
+                    type="checkbox"
+                    defaultChecked
+                    className="h-4 w-4 rounded border-slate-300 text-primary-600"
+                  />
+                  <label htmlFor="createLogin" className="text-sm text-slate-700">
+                    Create login account for this employee
+                  </label>
+                </div>
+                <input
+                  name="username"
+                  placeholder="Username (optional, auto-generated if left blank)"
+                  className="rounded border px-3 py-2 text-sm"
+                />
+              </>
+            )}
             {editing && (
               <select name="status" className="rounded border px-3 py-2">
                 <option value="active" selected={editing.status === "active"}>Active</option>

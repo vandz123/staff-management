@@ -74,10 +74,14 @@ export async function GET(req: NextRequest) {
     const missingCheckIn = todayAttendance.filter(
       (a) => a.status === "pending" && !a.checkIn
     ).length;
-    const totalExpected = await prisma.shiftAssignment.count({
+
+    // Count unique employees scheduled to work today
+    const scheduledEmployees = await prisma.shiftAssignment.findMany({
       where: { workDate: today },
+      select: { employeeId: true },
       distinct: ["employeeId"],
     });
+    const totalExpected = scheduledEmployees.length;
     const absent = Math.max(0, totalExpected - present);
 
     // Shift coverage

@@ -37,6 +37,7 @@ type NavGroup = {
 
 const navItems: (NavItem | NavGroup)[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/staff", label: "Staff", icon: Users, roles: ["admin", "manager", "staff"] },
   { href: "/password-requests", label: "Password Requests", icon: KeyRound, roles: ["admin"] },
   { href: "/employees", label: "Employees", icon: Users, roles: ["admin", "manager"] },
   { href: "/schedules", label: "Shift Schedule", icon: Calendar, roles: ["admin", "manager"] },
@@ -53,7 +54,7 @@ const navItems: (NavItem | NavGroup)[] = [
     ],
   },
   { href: "/trainings", label: "Training", icon: GraduationCap },
-  { href: "/policies", label: "Policy Docs", icon: FileText, roles: ["admin"] },
+  { href: "/policies", label: "Policy Docs", icon: FileText },
   { href: "/ai-assistant", label: "HR Assistant", icon: MessageCircle },
 ];
 
