@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { format } from "date-fns";
+import { BarChart, DonutChart } from "@/components/Chart";
 import {
   Users,
   UserCheck,
@@ -52,6 +54,17 @@ type DashboardData = {
     passwordReset: number;
     attendanceCorrection: number;
     leave: number;
+  };
+  attendanceTrend?: Array<{
+    label: string;
+    present: number;
+    late: number;
+    absent: number;
+  }>;
+  attendanceBreakdown?: {
+    onTime: number;
+    late: number;
+    absent: number;
   };
   // Manager
   teamOverview?: {
@@ -110,13 +123,13 @@ function StatCard({
   color: string;
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="rounded-xl border border-slate-200/60 bg-white/90 p-4 shadow-sm backdrop-blur-sm transition-transform hover:scale-[1.02]">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm text-slate-500">{title}</p>
           <p className="text-2xl font-bold text-slate-800">{value}</p>
         </div>
-        <div className={`flex h-12 w-12 items-center justify-center rounded-lg ${color} text-white`}>
+        <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${color} text-white shadow-lg`}>
           <Icon className="h-6 w-6" />
         </div>
       </div>
@@ -124,23 +137,29 @@ function StatCard({
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status, t }: { status: string; t: (k: string) => string }) {
   const colors: Record<string, string> = {
-    ok: "bg-emerald-100 text-emerald-800",
-    warning: "bg-amber-100 text-amber-800",
-    missing: "bg-red-100 text-red-800",
+    ok: "bg-fresh-100 text-fresh-800",
+    warning: "bg-warm-100 text-warm-800",
+    missing: "bg-coral-100 text-coral-800",
+  };
+  const labels: Record<string, string> = {
+    ok: "OK",
+    warning: t("dash.pending"),
+    missing: t("dash.absent"),
   };
   return (
     <span
       className={`rounded-full px-2 py-0.5 text-xs font-medium ${colors[status] ?? "bg-slate-100 text-slate-700"}`}
     >
-      {status === "ok" ? "OK" : status === "warning" ? "Almost full" : "Missing staff"}
+      {labels[status] ?? status}
     </span>
   );
 }
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -162,17 +181,17 @@ export default function DashboardPage() {
 
   if (!data) {
     return (
-      <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-red-800">
-        <p className="font-medium">Failed to load dashboard.</p>
-        <p className="mt-1 text-sm">Please refresh the page or contact support if the problem persists.</p>
+      <div className="rounded-lg border border-coral-200 bg-coral-50 p-6 text-coral-800">
+        <p className="font-medium">{t("dash.failed")}</p>
+        <p className="mt-1 text-sm">{t("dash.failedRetry")}</p>
       </div>
     );
   }
 
   if (!data.role || !["admin", "manager", "staff"].includes(data.role)) {
     return (
-      <div className="rounded-lg border border-amber-200 bg-amber-50 p-6 text-amber-800">
-        <p className="font-medium">Unable to load dashboard for your role.</p>
+      <div className="rounded-lg border border-warm-200 bg-warm-50 p-6 text-warm-800">
+        <p className="font-medium">{t("dash.roleError")}</p>
       </div>
     );
   }
@@ -182,41 +201,73 @@ export default function DashboardPage() {
     const wo = data.workforceOverview ?? { totalEmployees: 0, activeEmployees: 0, inactiveEmployees: 0, newThisMonth: 0 };
     const as = data.attendanceSummary ?? { present: 0, absent: 0, late: 0, missingCheckIn: 0 };
     const pr = data.pendingRequests ?? { passwordReset: 0, attendanceCorrection: 0, leave: 0 };
+    const trend = data.attendanceTrend ?? [];
+    const breakdown = data.attendanceBreakdown ?? { onTime: 0, late: 0, absent: 0 };
 
     return (
       <div>
-        <h1 className="mb-6 text-2xl font-bold text-slate-800">Admin Dashboard</h1>
+        <h1 className="mb-6 text-2xl font-bold text-slate-800">{t("dash.admin.title")}</h1>
 
         <section className="mb-8">
-          <h2 className="mb-3 text-lg font-semibold text-slate-700">Workforce Overview</h2>
+          <h2 className="mb-3 text-lg font-semibold text-slate-700">{t("dash.workforce")}</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard title="Total Employees" value={wo.totalEmployees} icon={Users} color="bg-primary-500" />
-            <StatCard title="Active" value={wo.activeEmployees} icon={UserCheck} color="bg-emerald-500" />
-            <StatCard title="Inactive" value={wo.inactiveEmployees} icon={UserX} color="bg-slate-500" />
-            <StatCard title="New This Month" value={wo.newThisMonth} icon={UserPlus} color="bg-blue-500" />
+            <StatCard title={t("dash.totalEmployees")} value={wo.totalEmployees} icon={Users} color="bg-primary-500" />
+            <StatCard title={t("dash.active")} value={wo.activeEmployees} icon={UserCheck} color="bg-fresh-500" />
+            <StatCard title={t("dash.inactive")} value={wo.inactiveEmployees} icon={UserX} color="bg-slate-500" />
+            <StatCard title={t("dash.newThisMonth")} value={wo.newThisMonth} icon={UserPlus} color="bg-accent-500" />
           </div>
         </section>
 
         <section className="mb-8">
-          <h2 className="mb-3 text-lg font-semibold text-slate-700">Attendance Summary (Today)</h2>
+          <h2 className="mb-3 text-lg font-semibold text-slate-700">{t("dash.attendanceSummary")}</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <StatCard title="Present" value={as.present} icon={ClipboardCheck} color="bg-emerald-500" />
-            <StatCard title="Absent" value={as.absent} icon={UserX} color="bg-red-500" />
-            <StatCard title="Late" value={as.late} icon={Clock} color="bg-amber-500" />
-            <StatCard title="Missing Check-In" value={as.missingCheckIn} icon={AlertTriangle} color="bg-amber-500" />
+            <StatCard title={t("dash.present")} value={as.present} icon={ClipboardCheck} color="bg-fresh-500" />
+            <StatCard title={t("dash.absent")} value={as.absent} icon={UserX} color="bg-coral-500" />
+            <StatCard title={t("dash.late")} value={as.late} icon={Clock} color="bg-warm-500" />
+            <StatCard title={t("dash.missingCheckIn")} value={as.missingCheckIn} icon={AlertTriangle} color="bg-warm-500" />
+          </div>
+        </section>
+
+        {/* Charts Section */}
+        <section className="mb-8">
+          <h2 className="mb-3 text-lg font-semibold text-slate-700">{t("dash.analytics")}</h2>
+          <div className="grid gap-6 lg:grid-cols-3">
+            <div className="rounded-xl border border-slate-200/60 bg-white/90 p-5 shadow-sm backdrop-blur-sm lg:col-span-2">
+              <h3 className="mb-3 text-sm font-semibold text-slate-600">{t("dash.attendanceTrend")}</h3>
+              <BarChart
+                labels={trend.map((d) => d.label)}
+                datasets={[
+                  { label: t("dash.onTime"), data: trend.map((d) => d.present), color: "#22c55e" },
+                  { label: t("dash.late"), data: trend.map((d) => d.late), color: "#f59e0b" },
+                  { label: t("dash.absent"), data: trend.map((d) => d.absent), color: "#ef4444" },
+                ]}
+                height={240}
+              />
+            </div>
+            <div className="rounded-xl border border-slate-200/60 bg-white/90 p-5 shadow-sm backdrop-blur-sm">
+              <h3 className="mb-3 text-sm font-semibold text-slate-600">{t("dash.attendanceBreakdown")}</h3>
+              <DonutChart
+                segments={[
+                  { label: t("dash.onTime"), value: breakdown.onTime, color: "#22c55e" },
+                  { label: t("dash.late"), value: breakdown.late, color: "#f59e0b" },
+                  { label: t("dash.absent"), value: breakdown.absent, color: "#ef4444" },
+                ]}
+                size={180}
+              />
+            </div>
           </div>
         </section>
 
         <section className="mb-8">
-          <h2 className="mb-3 text-lg font-semibold text-slate-700">Shift Coverage Status</h2>
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <h2 className="mb-3 text-lg font-semibold text-slate-700">{t("dash.shiftCoverage")}</h2>
+          <div className="overflow-hidden rounded-xl border border-slate-200/60 bg-white/90 shadow-sm backdrop-blur-sm">
             <table className="w-full">
-              <thead className="bg-slate-50">
+              <thead className="bg-slate-50/80">
                 <tr>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Shift</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Required</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Assigned</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Status</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("dash.shift")}</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("dash.required")}</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("dash.assigned")}</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("dash.status")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
@@ -226,7 +277,7 @@ export default function DashboardPage() {
                     <td className="px-4 py-3">{s.required}</td>
                     <td className="px-4 py-3">{s.assigned}</td>
                     <td className="px-4 py-3">
-                      {s.status && <StatusBadge status={s.status} />}
+                      {s.status && <StatusBadge status={s.status} t={t} />}
                     </td>
                   </tr>
                 ))}
@@ -236,22 +287,22 @@ export default function DashboardPage() {
         </section>
 
         <section className="mb-8">
-          <h2 className="mb-3 text-lg font-semibold text-slate-700">Payroll Overview</h2>
+          <h2 className="mb-3 text-lg font-semibold text-slate-700">{t("dash.payrollOverview")}</h2>
           <div className="grid gap-4 sm:grid-cols-3">
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <p className="text-sm text-slate-500">Total Payroll (Est.)</p>
+            <div className="rounded-xl border border-slate-200/60 bg-white/90 p-4 shadow-sm backdrop-blur-sm">
+              <p className="text-sm text-slate-500">{t("dash.totalPayroll")}</p>
               <p className="text-xl font-bold text-slate-800">
                 {((data.payrollOverview?.totalPayroll ?? 0) / 1_000_000).toFixed(1)}M VND
               </p>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <p className="text-sm text-slate-500">Total Overtime</p>
+            <div className="rounded-xl border border-slate-200/60 bg-white/90 p-4 shadow-sm backdrop-blur-sm">
+              <p className="text-sm text-slate-500">{t("dash.totalOvertime")}</p>
               <p className="text-xl font-bold text-slate-800">
-                {data.payrollOverview?.totalOvertimeHours ?? 0} hours
+                {data.payrollOverview?.totalOvertimeHours ?? 0} {t("dash.hours")}
               </p>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <p className="text-sm text-slate-500">Highest OT Dept</p>
+            <div className="rounded-xl border border-slate-200/60 bg-white/90 p-4 shadow-sm backdrop-blur-sm">
+              <p className="text-sm text-slate-500">{t("dash.highestOTDept")}</p>
               <p className="text-xl font-bold text-slate-800">
                 {data.payrollOverview?.highestOTDept ?? "—"}
               </p>
@@ -260,42 +311,42 @@ export default function DashboardPage() {
         </section>
 
         <section className="mb-8">
-          <h2 className="mb-3 text-lg font-semibold text-slate-700">Training Status</h2>
+          <h2 className="mb-3 text-lg font-semibold text-slate-700">{t("dash.trainingStatus")}</h2>
           <div className="grid gap-4 sm:grid-cols-3">
-            <StatCard title="Completed" value={data.trainingStatus?.completed ?? 0} icon={GraduationCap} color="bg-emerald-500" />
-            <StatCard title="Pending" value={data.trainingStatus?.pending ?? 0} icon={Clock} color="bg-amber-500" />
-            <StatCard title="Overdue" value={data.trainingStatus?.overdue ?? 0} icon={AlertTriangle} color="bg-red-500" />
+            <StatCard title={t("dash.completed")} value={data.trainingStatus?.completed ?? 0} icon={GraduationCap} color="bg-fresh-500" />
+            <StatCard title={t("dash.pending")} value={data.trainingStatus?.pending ?? 0} icon={Clock} color="bg-warm-500" />
+            <StatCard title={t("dash.overdue")} value={data.trainingStatus?.overdue ?? 0} icon={AlertTriangle} color="bg-coral-500" />
           </div>
         </section>
 
         <section>
-          <h2 className="mb-3 text-lg font-semibold text-slate-700">Pending Requests</h2>
+          <h2 className="mb-3 text-lg font-semibold text-slate-700">{t("dash.pendingRequests")}</h2>
           <div className="flex flex-wrap gap-4">
             <Link
               href="/password-requests"
-              className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-primary-300 hover:bg-primary-50"
+              className="flex items-center gap-3 rounded-xl border border-slate-200/60 bg-white/90 p-4 shadow-sm backdrop-blur-sm transition-transform hover:scale-[1.02] hover:border-primary-300"
             >
               <KeyRound className="h-8 w-8 text-primary-600" />
               <div>
-                <p className="font-medium text-slate-800">Password Reset</p>
+                <p className="font-medium text-slate-800">{t("dash.passwordReset")}</p>
                 <p className="text-2xl font-bold text-primary-600">{pr.passwordReset}</p>
               </div>
             </Link>
-            <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <FileEdit className="h-8 w-8 text-amber-600" />
+            <div className="flex items-center gap-3 rounded-xl border border-slate-200/60 bg-white/90 p-4 shadow-sm backdrop-blur-sm">
+              <FileEdit className="h-8 w-8 text-warm-600" />
               <div>
-                <p className="font-medium text-slate-800">Attendance Correction</p>
-                <p className="text-2xl font-bold text-amber-600">{pr.attendanceCorrection}</p>
+                <p className="font-medium text-slate-800">{t("dash.attendanceCorrection")}</p>
+                <p className="text-2xl font-bold text-warm-600">{pr.attendanceCorrection}</p>
               </div>
             </div>
             <Link
               href="/leave-approvals"
-              className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-primary-300 hover:bg-primary-50"
+              className="flex items-center gap-3 rounded-xl border border-slate-200/60 bg-white/90 p-4 shadow-sm backdrop-blur-sm transition-transform hover:scale-[1.02] hover:border-primary-300"
             >
-              <Calendar className="h-8 w-8 text-primary-600" />
+              <Calendar className="h-8 w-8 text-accent-600" />
               <div>
-                <p className="font-medium text-slate-800">Leave Requests</p>
-                <p className="text-2xl font-bold text-primary-600">{pr.leave}</p>
+                <p className="font-medium text-slate-800">{t("dash.leaveRequests")}</p>
+                <p className="text-2xl font-bold text-accent-600">{pr.leave}</p>
               </div>
             </Link>
           </div>
@@ -311,27 +362,27 @@ export default function DashboardPage() {
 
     return (
       <div>
-        <h1 className="mb-6 text-2xl font-bold text-slate-800">Manager Dashboard</h1>
+        <h1 className="mb-6 text-2xl font-bold text-slate-800">{t("dash.manager.title")}</h1>
 
         <section className="mb-8">
-          <h2 className="mb-3 text-lg font-semibold text-slate-700">Team Overview</h2>
+          <h2 className="mb-3 text-lg font-semibold text-slate-700">{t("dash.teamOverview")}</h2>
           <div className="grid gap-4 sm:grid-cols-4">
-            <StatCard title="Team Size" value={to.teamSize} icon={Users} color="bg-primary-500" />
-            <StatCard title="Present Today" value={to.presentToday} icon={UserCheck} color="bg-emerald-500" />
-            <StatCard title="Absent" value={to.absent} icon={UserX} color="bg-red-500" />
-            <StatCard title="Late" value={to.late} icon={Clock} color="bg-amber-500" />
+            <StatCard title={t("dash.teamSize")} value={to.teamSize} icon={Users} color="bg-primary-500" />
+            <StatCard title={t("dash.presentToday")} value={to.presentToday} icon={UserCheck} color="bg-fresh-500" />
+            <StatCard title={t("dash.absent")} value={to.absent} icon={UserX} color="bg-coral-500" />
+            <StatCard title={t("dash.late")} value={to.late} icon={Clock} color="bg-warm-500" />
           </div>
         </section>
 
         <div className="grid gap-8 lg:grid-cols-2">
           <section>
-            <h2 className="mb-3 text-lg font-semibold text-slate-700">Team Shift Schedule (Today)</h2>
-            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <h2 className="mb-3 text-lg font-semibold text-slate-700">{t("dash.teamShiftSchedule")}</h2>
+            <div className="overflow-hidden rounded-xl border border-slate-200/60 bg-white/90 shadow-sm backdrop-blur-sm">
               <table className="w-full">
-                <thead className="bg-slate-50">
+                <thead className="bg-slate-50/80">
                   <tr>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Employee</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Shift</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("dash.employee")}</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("dash.shift")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
@@ -347,16 +398,16 @@ export default function DashboardPage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-lg font-semibold text-slate-700">Attendance Alerts</h2>
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <h2 className="mb-3 text-lg font-semibold text-slate-700">{t("dash.attendanceAlerts")}</h2>
+            <div className="rounded-xl border border-slate-200/60 bg-white/90 p-4 shadow-sm backdrop-blur-sm">
               {(data.attendanceAlerts ?? []).length === 0 ? (
-                <p className="text-slate-500">No alerts</p>
+                <p className="text-slate-500">{t("dash.noAlerts")}</p>
               ) : (
                 <ul className="space-y-2">
                   {(data.attendanceAlerts ?? []).map((a, i) => (
-                    <li key={i} className="flex justify-between rounded-lg bg-amber-50 px-3 py-2">
-                      <span className="font-medium text-amber-800">{a.issue}</span>
-                      <span className="text-amber-700">{a.employee}</span>
+                    <li key={i} className="flex justify-between rounded-lg bg-warm-50 px-3 py-2">
+                      <span className="font-medium text-warm-800">{a.issue}</span>
+                      <span className="text-warm-700">{a.employee}</span>
                     </li>
                   ))}
                 </ul>
@@ -367,47 +418,47 @@ export default function DashboardPage() {
 
         {(data.shiftCoverageWarning ?? []).length > 0 && (
           <section className="mt-8">
-            <h2 className="mb-3 text-lg font-semibold text-slate-700">Shift Coverage Warning</h2>
-            <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+            <h2 className="mb-3 text-lg font-semibold text-slate-700">{t("dash.shiftCoverageWarning")}</h2>
+            <div className="rounded-xl border border-coral-200 bg-coral-50 p-4">
               {data.shiftCoverageWarning?.map((s, i) => (
-                <p key={i} className="text-red-800">
-                  {s.name}: {s.assigned}/{s.required} assigned — missing {s.required - s.assigned}
+                <p key={i} className="text-coral-800">
+                  {s.name}: {s.assigned}/{s.required} {t("dash.assigned")} — missing {s.required - s.assigned}
                 </p>
               ))}
               <Link href="/schedules" className="mt-2 inline-block text-sm font-medium text-primary-600 hover:underline">
-                Assign staff →
+                {t("dash.assignStaff")}
               </Link>
             </div>
           </section>
         )}
 
         <section className="mt-8">
-          <h2 className="mb-3 text-lg font-semibold text-slate-700">Training Progress</h2>
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <h2 className="mb-3 text-lg font-semibold text-slate-700">{t("dash.trainingProgress")}</h2>
+          <div className="overflow-hidden rounded-xl border border-slate-200/60 bg-white/90 shadow-sm backdrop-blur-sm">
             <table className="w-full">
-              <thead className="bg-slate-50">
+              <thead className="bg-slate-50/80">
                 <tr>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Employee</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Training</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Status</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("dash.employee")}</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("dash.training")}</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("dash.status")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {(data.trainingProgress ?? []).map((t, i) => (
+                {(data.trainingProgress ?? []).map((tr, i) => (
                   <tr key={i}>
-                    <td className="px-4 py-3">{t.employee}</td>
-                    <td className="px-4 py-3">{t.training}</td>
+                    <td className="px-4 py-3">{tr.employee}</td>
+                    <td className="px-4 py-3">{tr.training}</td>
                     <td className="px-4 py-3">
                       <span
                         className={`rounded px-2 py-0.5 text-xs ${
-                          t.status === "Completed"
-                            ? "bg-emerald-100 text-emerald-700"
-                            : t.status === "Overdue"
-                              ? "bg-red-100 text-red-700"
-                              : "bg-amber-100 text-amber-700"
+                          tr.status === "Completed"
+                            ? "bg-fresh-100 text-fresh-700"
+                            : tr.status === "Overdue"
+                              ? "bg-coral-100 text-coral-700"
+                              : "bg-warm-100 text-warm-700"
                         }`}
                       >
-                        {t.status}
+                        {tr.status}
                       </span>
                     </td>
                   </tr>
@@ -418,12 +469,12 @@ export default function DashboardPage() {
         </section>
 
         <section className="mt-8">
-          <h2 className="mb-3 text-lg font-semibold text-slate-700">Pending Approvals</h2>
+          <h2 className="mb-3 text-lg font-semibold text-slate-700">{t("dash.pendingApprovals")}</h2>
           <div className="grid gap-4 sm:grid-cols-3">
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h3 className="mb-2 font-medium text-slate-700">Leave Requests ({pa.leave.length})</h3>
+            <div className="rounded-xl border border-slate-200/60 bg-white/90 p-4 shadow-sm backdrop-blur-sm">
+              <h3 className="mb-2 font-medium text-slate-700">{t("dash.leaveRequests")} ({pa.leave.length})</h3>
               {pa.leave.length === 0 ? (
-                <p className="text-sm text-slate-500">None</p>
+                <p className="text-sm text-slate-500">{t("dash.none")}</p>
               ) : (
                 <ul className="space-y-2">
                   {pa.leave.slice(0, 3).map((l) => (
@@ -433,34 +484,34 @@ export default function DashboardPage() {
                         href="/leave-approvals"
                         className="text-primary-600 hover:underline"
                       >
-                        Approve
+                        {t("dash.approve")}
                       </Link>
                     </li>
                   ))}
                 </ul>
               )}
             </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h3 className="mb-2 font-medium text-slate-700">Overtime ({pa.overtime.length})</h3>
+            <div className="rounded-xl border border-slate-200/60 bg-white/90 p-4 shadow-sm backdrop-blur-sm">
+              <h3 className="mb-2 font-medium text-slate-700">{t("dash.overtime")} ({pa.overtime.length})</h3>
               {pa.overtime.length === 0 ? (
-                <p className="text-sm text-slate-500">None</p>
+                <p className="text-sm text-slate-500">{t("dash.none")}</p>
               ) : (
                 <ul className="space-y-2">
                   {pa.overtime.slice(0, 3).map((o) => (
                     <li key={o.id} className="flex items-center justify-between text-sm">
                       <span>{o.employee} — {o.hours}h</span>
                       <Link href="/overtime-approvals" className="text-primary-600 hover:underline">
-                        Approve
+                        {t("dash.approve")}
                       </Link>
                     </li>
                   ))}
                 </ul>
               )}
             </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h3 className="mb-2 font-medium text-slate-700">Corrections ({pa.attendanceCorrection.length})</h3>
+            <div className="rounded-xl border border-slate-200/60 bg-white/90 p-4 shadow-sm backdrop-blur-sm">
+              <h3 className="mb-2 font-medium text-slate-700">{t("dash.corrections")} ({pa.attendanceCorrection.length})</h3>
               {pa.attendanceCorrection.length === 0 ? (
-                <p className="text-sm text-slate-500">None</p>
+                <p className="text-sm text-slate-500">{t("dash.none")}</p>
               ) : (
                 <ul className="space-y-2 text-sm">
                   {pa.attendanceCorrection.map((c) => (
@@ -484,12 +535,12 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold text-slate-800">Employee Dashboard</h1>
+      <h1 className="mb-6 text-2xl font-bold text-slate-800">{t("dash.staff.title")}</h1>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="rounded-xl border border-slate-200/60 bg-white/90 p-6 shadow-sm backdrop-blur-sm">
           <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-700">
-            <Calendar className="h-5 w-5" /> Today&apos;s Schedule
+            <Calendar className="h-5 w-5 text-primary-500" /> {t("dash.todaysSchedule")}
           </h2>
           {schedule ? (
             <div>
@@ -500,137 +551,137 @@ export default function DashboardPage() {
               </p>
             </div>
           ) : (
-            <p className="text-slate-500">No shift assigned today</p>
+            <p className="text-slate-500">{t("dash.noShift")}</p>
           )}
         </section>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="rounded-xl border border-slate-200/60 bg-white/90 p-6 shadow-sm backdrop-blur-sm">
           <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-700">
-            <ClipboardCheck className="h-5 w-5" /> Attendance Status
+            <ClipboardCheck className="h-5 w-5 text-fresh-500" /> {t("dash.attendanceStatus")}
           </h2>
           {att ? (
             <div className="space-y-2">
               <p>
-                <span className="text-slate-500">Check-In:</span>{" "}
+                <span className="text-slate-500">{t("dash.checkIn")}:</span>{" "}
                 {att.checkIn ? format(new Date(att.checkIn), "HH:mm") : "—"}
               </p>
               <p>
-                <span className="text-slate-500">Check-Out:</span>{" "}
-                {att.checkOut ? format(new Date(att.checkOut), "HH:mm") : "Not yet"}
+                <span className="text-slate-500">{t("dash.checkOut")}:</span>{" "}
+                {att.checkOut ? format(new Date(att.checkOut), "HH:mm") : t("dash.notYet")}
               </p>
               <p className="font-medium text-slate-800">{att.status}</p>
             </div>
           ) : (
-            <p className="text-slate-500">No record</p>
+            <p className="text-slate-500">{t("dash.noRecord")}</p>
           )}
         </section>
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="rounded-xl border border-slate-200/60 bg-white/90 p-6 shadow-sm backdrop-blur-sm">
           <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-700">
-            <Clock className="h-5 w-5" /> Work Hours Summary
+            <Clock className="h-5 w-5 text-accent-500" /> {t("dash.workHours")}
           </h2>
           {wh ? (
             <div>
-              <p className="text-2xl font-bold text-slate-800">{wh.totalHours} hours</p>
-              <p className="text-slate-600">Overtime: {wh.overtime} hours</p>
+              <p className="text-2xl font-bold text-slate-800">{wh.totalHours} {t("dash.hours")}</p>
+              <p className="text-slate-600">{t("dash.overtime")}: {wh.overtime} {t("dash.hours")}</p>
               <p className="mt-1 text-xs text-slate-500">
                 Pay period: {format(new Date(wh.payPeriodStart), "d MMM")} –{" "}
                 {format(new Date(wh.payPeriodEnd), "d MMM yyyy")}
               </p>
             </div>
           ) : (
-            <p className="text-slate-500">No data</p>
+            <p className="text-slate-500">{t("dash.noData")}</p>
           )}
         </section>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="rounded-xl border border-slate-200/60 bg-white/90 p-6 shadow-sm backdrop-blur-sm">
           <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-700">
-            <TrendingUp className="h-5 w-5" /> Payroll Estimate
+            <TrendingUp className="h-5 w-5 text-warm-500" /> {t("dash.payrollEstimate")}
           </h2>
           {pay ? (
             <div className="space-y-2">
               <p>
-                <span className="text-slate-500">Base Salary:</span>{" "}
+                <span className="text-slate-500">{t("dash.baseSalary")}:</span>{" "}
                 {(pay.baseSalary / 1_000_000).toFixed(1)}M VND
               </p>
               <p>
-                <span className="text-slate-500">Overtime Pay:</span>{" "}
+                <span className="text-slate-500">{t("dash.overtimePay")}:</span>{" "}
                 {(pay.overtimePay / 1_000).toFixed(0)}K VND
               </p>
               {pay.deductions > 0 && (
-                <p className="text-red-600">Deductions: {(pay.deductions / 1_000).toFixed(0)}K VND</p>
+                <p className="text-coral-600">{t("dash.deductions")}: {(pay.deductions / 1_000).toFixed(0)}K VND</p>
               )}
               <p className="mt-2 text-xl font-bold text-slate-800">
-                Estimated: {(pay.estimatedTotal / 1_000_000).toFixed(2)}M VND
+                {t("dash.estimated")}: {(pay.estimatedTotal / 1_000_000).toFixed(2)}M VND
               </p>
             </div>
           ) : (
-            <p className="text-slate-500">No salary data</p>
+            <p className="text-slate-500">{t("dash.noSalaryData")}</p>
           )}
         </section>
       </div>
 
-      <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <section className="mt-6 rounded-xl border border-slate-200/60 bg-white/90 p-6 shadow-sm backdrop-blur-sm">
         <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-700">
-          <GraduationCap className="h-5 w-5" /> Training Tasks
+          <GraduationCap className="h-5 w-5 text-primary-500" /> {t("dash.trainingTasks")}
         </h2>
         {tasks.length === 0 ? (
-          <p className="text-slate-500">No training assigned</p>
+          <p className="text-slate-500">{t("dash.noTraining")}</p>
         ) : (
           <ul className="space-y-3">
-            {tasks.map((t) => (
+            {tasks.map((task) => (
               <li
-                key={t.id}
+                key={task.id}
                 className="flex items-center justify-between rounded-lg border border-slate-100 p-3"
               >
                 <div>
-                  <span className="font-medium">{t.training}</span>
-                  {t.deadline && (
+                  <span className="font-medium">{task.training}</span>
+                  {task.deadline && (
                     <span className="ml-2 text-sm text-slate-500">
-                      Deadline: {format(new Date(t.deadline), "d MMM yyyy")}
+                      Deadline: {format(new Date(task.deadline), "d MMM yyyy")}
                     </span>
                   )}
                 </div>
                 <span
                   className={`rounded px-2 py-0.5 text-xs ${
-                    t.status === "completed" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                    task.status === "completed" ? "bg-fresh-100 text-fresh-700" : "bg-warm-100 text-warm-700"
                   }`}
                 >
-                  {t.status === "completed" ? "Completed" : t.deadline && new Date(t.deadline) < new Date() ? "Overdue" : "Pending"}
+                  {task.status === "completed" ? t("dash.completed") : task.deadline && new Date(task.deadline) < new Date() ? t("dash.overdue") : t("dash.pending")}
                 </span>
               </li>
             ))}
           </ul>
         )}
         <Link href="/trainings" className="mt-3 inline-block text-sm text-primary-600 hover:underline">
-          View all trainings →
+          {t("dash.viewAllTrainings")}
         </Link>
       </section>
 
-      <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <section className="mt-6 rounded-xl border border-slate-200/60 bg-white/90 p-6 shadow-sm backdrop-blur-sm">
         <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-700">
-          <MessageCircle className="h-5 w-5" /> HR Assistant
+          <MessageCircle className="h-5 w-5 text-accent-500" /> {t("dash.hrAssistant")}
         </h2>
         <p className="mb-3 text-slate-600">
-          Ask questions about leave days, overtime policy, or other HR matters.
+          {t("dash.hrAssistantDesc")}
         </p>
         <Link
           href="/ai-assistant"
-          className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 font-medium text-white hover:bg-primary-700"
+          className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-primary-600 to-accent-600 px-4 py-2 font-medium text-white shadow-md hover:shadow-lg transition-shadow"
         >
-          <MessageCircle className="h-4 w-4" /> Open HR Assistant
+          <MessageCircle className="h-4 w.4" /> {t("dash.openHRAssistant")}
         </Link>
       </section>
 
       {data.leaveBalance != null && (
-        <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-2 text-lg font-semibold text-slate-700">Leave Balance</h2>
+        <section className="mt-6 rounded-xl border border-slate-200/60 bg-white/90 p-6 shadow-sm backdrop-blur-sm">
+          <h2 className="mb-2 text-lg font-semibold text-slate-700">{t("dash.leaveBalance")}</h2>
           <p className="text-2xl font-bold text-slate-800">{data.leaveBalance} days</p>
-          <p className="text-sm text-slate-500">Annual leave remaining</p>
+          <p className="text-sm text-slate-500">{t("dash.daysRemaining")}</p>
           <Link href="/leave" className="mt-2 inline-block text-sm text-primary-600 hover:underline">
-            Submit leave request →
+            {t("dash.submitLeave")}
           </Link>
         </section>
       )}

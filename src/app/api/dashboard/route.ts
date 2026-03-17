@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuth } from "@/lib/middleware";
 import { prisma } from "@/lib/prisma";
-import { subDays, startOfMonth, endOfMonth } from "date-fns";
+import { subDays, startOfMonth, endOfMonth, format } from "date-fns";
 
 function hoursBetween(start: Date, end: Date): number {
   return (end.getTime() - start.getTime()) / (1000 * 60 * 60);
@@ -159,37 +159,95 @@ export async function GET(req: NextRequest) {
     const attendanceCorrectionPending = await prisma.attendanceCorrectionRequest.count({
       where: { status: "pending" },
     });
-    const leavePending = await prisma.leaveRequest.count({
-      where: { status: "pending" },
-    });
+     const leavePending = await prisma.leaveRequest.count({
+       where: { status: "pending" },
+     });
 
-    return NextResponse.json({
-      role: "admin",
-      workforceOverview: {
-        totalEmployees: allEmployees.length,
-        activeEmployees: activeCount,
-        inactiveEmployees: inactiveCount,
-        newThisMonth,
-      },
-      attendanceSummary: {
-        present,
-        absent,
-        late,
-        missingCheckIn,
-      },
-      shiftCoverage,
-      payrollOverview: {
-        totalPayroll: Math.round(totalPayroll),
-        totalOvertimeHours: Math.round(totalOvertimeHours * 10) / 10,
-        highestOTDept: highestOTDept ? deptMap[highestOTDept[0]] ?? "—" : "—",
-      },
-      trainingStatus: { completed, pending, overdue },
-      pendingRequests: {
-        passwordReset: passwordResetPending,
-        attendanceCorrection: attendanceCorrectionPending,
-        leave: leavePending,
-      },
-    });
+     // 7-day attendance trend
+     const trendDays: { label: string; present: number; late: number; absent: number }[] = [];
+     for (let i = 6; i >= 0; i--) {
+       const day = subDays(today, i);
+       day.setHours(0, 0, 0, 0);
+       const dayAttendance = await prisma.attendance.findMany({
+         where: { workDate: day },
+       });
+       const dayAssignments = await prisma.shiftAssignment.findMany({
+         where: { workDate: day },
+         include: { shift: true },
+       });
+       const dayShiftMap: Record<string, string> = {};
+       dayAssignments.forEach((a) => { dayShiftMap[a.employeeId] = a.shift.startTime; });
+       let dayPresent = 0;
+       let dayLate = 0;
+       for (const a of dayAttendance) {
+         if (a.checkIn) {
+           const shift = dayShiftMap[a.employeeId];
+           if (shift) {
+             const [sh, sm] = shift.split(":").map(Number);
+             const shiftStart = new Date(a.checkIn);
+             shiftStart.setHours(sh, sm, 0, 0);
+             if (a.checkIn > shiftStart) {
+               dayLate++;
+             } else {
+               dayPresent++;
+             }
+           } else {
+             dayPresent++;
+           }
+         }
+       }
+       const dayScheduled = await prisma.shiftAssignment.findMany({
+         where: { workDate: day },
+         select: { employeeId: true },
+         distinct: ["employeeId"],
+       });
+       const dayAbsent = Math.max(0, dayScheduled.length - dayPresent - dayLate);
+       trendDays.push({
+         label: format(day, "dd/MM"),
+         present: dayPresent,
+         late: dayLate,
+         absent: dayAbsent,
+       });
+     }
+
+     // Attendance breakdown (totals from last 7 days)
+     const totalOnTime = trendDays.reduce((s, d) => s + d.present, 0);
+     const totalLate = trendDays.reduce((s, d) => s + d.late, 0);
+     const totalAbsent = trendDays.reduce((s, d) => s + d.absent, 0);
+
+     return NextResponse.json({
+       role: "admin",
+       workforceOverview: {
+         totalEmployees: allEmployees.length,
+         activeEmployees: activeCount,
+         inactiveEmployees: inactiveCount,
+         newThisMonth,
+       },
+       attendanceSummary: {
+         present,
+         absent,
+         late,
+         missingCheckIn,
+       },
+       shiftCoverage,
+       payrollOverview: {
+         totalPayroll: Math.round(totalPayroll),
+         totalOvertimeHours: Math.round(totalOvertimeHours * 10) / 10,
+         highestOTDept: highestOTDept ? deptMap[highestOTDept[0]] ?? "—" : "—",
+       },
+       trainingStatus: { completed, pending, overdue },
+       pendingRequests: {
+         passwordReset: passwordResetPending,
+         attendanceCorrection: attendanceCorrectionPending,
+         leave: leavePending,
+       },
+       attendanceTrend: trendDays,
+       attendanceBreakdown: {
+         onTime: totalOnTime,
+         late: totalLate,
+         absent: totalAbsent,
+       },
+     });
   }
 
   if (role === "manager" && managerDeptId) {

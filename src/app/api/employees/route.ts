@@ -6,6 +6,7 @@ import { generateTempPassword, hashPassword } from "@/lib/auth";
 async function handleGet(req: NextRequest, auth: { role: string; employeeId?: string | null }) {
   const { searchParams } = new URL(req.url);
   const status = searchParams.get("status") || "active";
+  const includeAttendance = searchParams.get("includeAttendance") === "true";
 
   let where: Record<string, unknown> =
     status === "all" ? {} : { status: status as "active" | "inactive" };
@@ -39,6 +40,27 @@ async function handleGet(req: NextRequest, auth: { role: string; employeeId?: st
     },
     orderBy: { lastName: "asc" },
   });
+
+  if (includeAttendance) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const empIds = employees.map((e) => e.id);
+    const attendanceRecords = await prisma.attendance.findMany({
+      where: { workDate: today, employeeId: { in: empIds } },
+    });
+    const attMap = new Map(attendanceRecords.map((a) => [a.employeeId, a]));
+    const result = employees.map((emp) => {
+      const att = attMap.get(emp.id);
+      return {
+        ...emp,
+        todayAttendance: att
+          ? { status: att.status, checkIn: att.checkIn?.toISOString() ?? null }
+          : null,
+      };
+    });
+    return NextResponse.json(result);
+  }
+
   return NextResponse.json(employees);
 }
 
@@ -56,8 +78,10 @@ async function handlePost(
     lastName,
     email,
     phone,
+    address,
     dateOfBirth,
     hireDate,
+    contractEndDate,
     departmentId,
     positionId,
     baseSalary,
@@ -79,8 +103,10 @@ async function handlePost(
       lastName,
       email,
       phone: phone || null,
+      address: address || null,
       dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
       hireDate: new Date(hireDate),
+      contractEndDate: contractEndDate ? new Date(contractEndDate) : null,
       departmentId: departmentId || null,
       positionId: positionId || null,
       baseSalary: baseSalary ?? null,

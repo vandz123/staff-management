@@ -32,9 +32,11 @@ export async function PATCH(
     firstName?: string;
     lastName?: string;
     email?: string;
-    phone?: string;
-    dateOfBirth?: Date;
+    phone?: string | null;
+    address?: string | null;
+    dateOfBirth?: Date | null;
     hireDate?: Date;
+    contractEndDate?: Date | null;
     departmentId?: string | null;
     positionId?: string | null;
     status?: "active" | "inactive";
@@ -42,9 +44,11 @@ export async function PATCH(
   if (body.firstName !== undefined) data.firstName = body.firstName;
   if (body.lastName !== undefined) data.lastName = body.lastName;
   if (body.email !== undefined) data.email = body.email;
-  if (body.phone !== undefined) data.phone = body.phone;
-  if (body.dateOfBirth !== undefined) data.dateOfBirth = new Date(body.dateOfBirth);
+  if (body.phone !== undefined) data.phone = body.phone || null;
+  if (body.address !== undefined) data.address = body.address || null;
+  if (body.dateOfBirth !== undefined) data.dateOfBirth = body.dateOfBirth ? new Date(body.dateOfBirth) : null;
   if (body.hireDate !== undefined) data.hireDate = new Date(body.hireDate);
+  if (body.contractEndDate !== undefined) data.contractEndDate = body.contractEndDate ? new Date(body.contractEndDate) : null;
   if (body.departmentId !== undefined) data.departmentId = body.departmentId;
   if (body.positionId !== undefined) data.positionId = body.positionId;
   if (body.status !== undefined) data.status = body.status;

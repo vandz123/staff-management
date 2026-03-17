@@ -30,12 +30,23 @@ async function main() {
 
   const adminEmp = await prisma.employee.upsert({
     where: { email: "admin@company.com" },
-    update: { baseSalary: 20000000, annualLeaveBalance: 12 },
+    update: {
+      baseSalary: 20000000,
+      annualLeaveBalance: 12,
+      phone: "0901234567",
+      address: "123 Nguyễn Huệ, Quận 1, TP.HCM",
+      dateOfBirth: new Date("1985-03-15"),
+      contractEndDate: new Date("2027-12-31"),
+    },
     create: {
       firstName: "Admin",
-      lastName: "User",
+      lastName: "Nguyễn",
       email: "admin@company.com",
-      hireDate: new Date(),
+      phone: "0901234567",
+      address: "123 Nguyễn Huệ, Quận 1, TP.HCM",
+      dateOfBirth: new Date("1985-03-15"),
+      hireDate: new Date("2020-01-01"),
+      contractEndDate: new Date("2027-12-31"),
       departmentId: hr.id,
       positionId: managerPos.id,
       baseSalary: 20000000,
@@ -55,12 +66,23 @@ async function main() {
 
   const managerEmp = await prisma.employee.upsert({
     where: { email: "manager@company.com" },
-    update: { baseSalary: 18000000, annualLeaveBalance: 12 },
+    update: {
+      baseSalary: 18000000,
+      annualLeaveBalance: 12,
+      phone: "0912345678",
+      address: "456 Lê Lợi, Quận 3, TP.HCM",
+      dateOfBirth: new Date("1990-07-22"),
+      contractEndDate: new Date("2026-06-30"),
+    },
     create: {
-      firstName: "Manager",
-      lastName: "User",
+      firstName: "Minh",
+      lastName: "Trần",
       email: "manager@company.com",
-      hireDate: new Date(),
+      phone: "0912345678",
+      address: "456 Lê Lợi, Quận 3, TP.HCM",
+      dateOfBirth: new Date("1990-07-22"),
+      hireDate: new Date("2021-06-01"),
+      contractEndDate: new Date("2026-06-30"),
       departmentId: ops.id,
       positionId: managerPos.id,
       baseSalary: 18000000,
@@ -80,12 +102,23 @@ async function main() {
 
   const staffEmp = await prisma.employee.upsert({
     where: { email: "staff@company.com" },
-    update: { baseSalary: 15000000, annualLeaveBalance: 12 },
+    update: {
+      baseSalary: 15000000,
+      annualLeaveBalance: 12,
+      phone: "0923456789",
+      address: "789 Trần Hưng Đạo, Quận 5, TP.HCM",
+      dateOfBirth: new Date("1995-11-10"),
+      contractEndDate: new Date("2026-04-15"),
+    },
     create: {
-      firstName: "Staff",
-      lastName: "User",
+      firstName: "Hương",
+      lastName: "Lê",
       email: "staff@company.com",
-      hireDate: new Date(),
+      phone: "0923456789",
+      address: "789 Trần Hưng Đạo, Quận 5, TP.HCM",
+      dateOfBirth: new Date("1995-11-10"),
+      hireDate: new Date("2022-03-15"),
+      contractEndDate: new Date("2026-04-15"),
       departmentId: ops.id,
       positionId: staffPos.id,
       baseSalary: 15000000,
@@ -113,6 +146,80 @@ async function main() {
     update: {},
     create: { name: "Afternoon", startTime: "13:00", endTime: "17:00", requiredStaff: 2 },
   });
+
+  // Create sample attendance data for last 7 days
+  const shifts = await prisma.shift.findMany();
+  const morningShift = shifts.find((s) => s.name === "Morning");
+  const allEmployees = [adminEmp, managerEmp, staffEmp];
+
+  if (morningShift) {
+    for (let i = 6; i >= 0; i--) {
+      const day = new Date();
+      day.setDate(day.getDate() - i);
+      day.setHours(0, 0, 0, 0);
+
+      for (const emp of allEmployees) {
+        // Create shift assignment
+        await prisma.shiftAssignment.upsert({
+          where: {
+            employeeId_shiftId_workDate: {
+              employeeId: emp.id,
+              shiftId: morningShift.id,
+              workDate: day,
+            },
+          },
+          update: {},
+          create: {
+            employeeId: emp.id,
+            shiftId: morningShift.id,
+            workDate: day,
+          },
+        });
+
+        // Create attendance with varied statuses
+        const rand = Math.random();
+        let checkIn: Date | null = null;
+        let checkOut: Date | null = null;
+        let status = "pending";
+
+        if (rand < 0.6) {
+          // On time
+          checkIn = new Date(day);
+          checkIn.setHours(8, 30 + Math.floor(Math.random() * 25), 0, 0);
+          checkOut = new Date(day);
+          checkOut.setHours(17, Math.floor(Math.random() * 30), 0, 0);
+          status = "present";
+        } else if (rand < 0.85) {
+          // Late
+          checkIn = new Date(day);
+          checkIn.setHours(9, 5 + Math.floor(Math.random() * 55), 0, 0);
+          checkOut = new Date(day);
+          checkOut.setHours(17, Math.floor(Math.random() * 30), 0, 0);
+          status = "present";
+        } else {
+          // Absent
+          status = "absent";
+        }
+
+        await prisma.attendance.upsert({
+          where: {
+            employeeId_workDate: {
+              employeeId: emp.id,
+              workDate: day,
+            },
+          },
+          update: { checkIn, checkOut, status },
+          create: {
+            employeeId: emp.id,
+            workDate: day,
+            checkIn,
+            checkOut,
+            status,
+          },
+        });
+      }
+    }
+  }
 
   console.log("Seed done. Login: admin | manager | staff | password: password123");
 }

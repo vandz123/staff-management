@@ -62,8 +62,10 @@ model Employee {
   lastName      String    @map("last_name")
   email         String    @unique
   phone         String?
+  address       String?
   dateOfBirth   DateTime? @map("date_of_birth")
   hireDate      DateTime  @map("hire_date")
+  contractEndDate DateTime? @map("contract_end_date")
   departmentId  String?   @map("department_id")
   positionId    String?   @map("position_id")
   status        EmployeeStatus @default(active)

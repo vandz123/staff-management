@@ -1,8 +1,9 @@
- "use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 import { Users, UserCircle2, ClipboardCheck, CalendarDays } from "lucide-react";
 import { format } from "date-fns";
@@ -12,6 +13,10 @@ type EmployeeWithUser = {
   firstName: string;
   lastName: string;
   email: string;
+  phone?: string | null;
+  address?: string | null;
+  dateOfBirth?: string | null;
+  contractEndDate?: string | null;
   status: string;
   baseSalary?: number | null;
   department?: { name: string } | null;
@@ -20,6 +25,10 @@ type EmployeeWithUser = {
     role: "admin" | "manager" | "staff";
     username: string;
     status: string;
+  } | null;
+  todayAttendance?: {
+    status: string;
+    checkIn: string | null;
   } | null;
 };
 
@@ -39,27 +48,48 @@ type SelfLeave = {
   status: string;
 };
 
+function AttendanceBadge({ attendance, shiftStart, t }: { attendance?: { status: string; checkIn: string | null } | null; shiftStart?: string; t: (k: string) => string }) {
+  if (!attendance || !attendance.checkIn) {
+    if (attendance?.status === "absent") {
+      return <span className="rounded-full px-2.5 py-1 text-xs font-medium bg-coral-100 text-coral-700">{t("attType.absent")}</span>;
+    }
+    return <span className="rounded-full px-2.5 py-1 text-xs font-medium bg-slate-100 text-slate-500">{t("attType.noData")}</span>;
+  }
+
+  // Determine if late
+  if (shiftStart && attendance.checkIn) {
+    const [h, m] = shiftStart.split(":").map(Number);
+    const checkInDate = new Date(attendance.checkIn);
+    const shiftDate = new Date(checkInDate);
+    shiftDate.setHours(h, m, 0, 0);
+    if (checkInDate > shiftDate) {
+      return <span className="rounded-full px-2.5 py-1 text-xs font-medium bg-warm-100 text-warm-700">{t("attType.late")}</span>;
+    }
+  }
+
+  return <span className="rounded-full px-2.5 py-1 text-xs font-medium bg-fresh-100 text-fresh-700">{t("attType.onTime")}</span>;
+}
+
+function EmployeeStatusBadge({ emp, t }: { emp: EmployeeWithUser; t: (k: string) => string }) {
+  if (emp.status === "inactive") {
+    return <span className="rounded-full px-2.5 py-1 text-xs font-medium bg-coral-100 text-coral-700">{t("empStatus.resigned")}</span>;
+  }
+  if (emp.contractEndDate) {
+    const endDate = new Date(emp.contractEndDate);
+    const now = new Date();
+    const diffDays = Math.floor((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays < 0) {
+      return <span className="rounded-full px-2.5 py-1 text-xs font-medium bg-coral-100 text-coral-700">{t("empStatus.resigned")}</span>;
+    }
+    if (diffDays <= 30) {
+      return <span className="rounded-full px-2.5 py-1 text-xs font-medium bg-warm-100 text-warm-700">{t("empStatus.expiringSoon")}</span>;
+    }
+  }
+  return <span className="rounded-full px-2.5 py-1 text-xs font-medium bg-fresh-100 text-fresh-700">{t("empStatus.working")}</span>;
+}
+
 export default function StaffPage() {
   const { user } = useAuth();
-
-  // #region agent log
-  fetch("http://127.0.0.1:7265/ingest/a4b4f286-f1fa-4860-bd48-265a0cc8119b", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Debug-Session-Id": "412356",
-    },
-    body: JSON.stringify({
-      sessionId: "412356",
-      runId: "initial",
-      hypothesisId: "H1",
-      location: "src/app/(protected)/staff/page.tsx:42",
-      message: "StaffPage render",
-      data: { role: user?.role ?? null },
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-  // #endregion
 
   if (!user) return null;
 
@@ -75,6 +105,7 @@ export default function StaffPage() {
 }
 
 function AdminStaffView() {
+  const { t } = useLanguage();
   const [employees, setEmployees] = useState<EmployeeWithUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("active");
@@ -86,7 +117,7 @@ function AdminStaffView() {
     setLoading(true);
     api
       .get<EmployeeWithUser[]>("/employees", {
-        params: { status: "all" },
+        params: { status: "all", includeAttendance: "true" },
       })
       .then((r) => setEmployees(r.data))
       .finally(() => setLoading(false));
@@ -122,25 +153,25 @@ function AdminStaffView() {
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Staff Directory</h1>
-          <p className="text-sm text-slate-500">Organization-wide view of all employees.</p>
+          <h1 className="text-2xl font-bold text-slate-800">{t("staff.directory")}</h1>
+          <p className="text-sm text-slate-500">{t("staff.directoryDesc")}</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="rounded border border-slate-300 px-3 py-2 text-sm"
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 outline-none"
           >
-            <option value="all">All statuses</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
+            <option value="all">{t("staff.allStatuses")}</option>
+            <option value="active">{t("staff.active")}</option>
+            <option value="inactive">{t("staff.inactive")}</option>
           </select>
           <select
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
-            className="rounded border border-slate-300 px-3 py-2 text-sm"
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 outline-none"
           >
-            <option value="all">All roles</option>
+            <option value="all">{t("staff.allRoles")}</option>
             <option value="admin">Admin</option>
             <option value="manager">Manager</option>
             <option value="staff">Staff</option>
@@ -148,9 +179,9 @@ function AdminStaffView() {
           <select
             value={departmentFilter}
             onChange={(e) => setDepartmentFilter(e.target.value)}
-            className="rounded border border-slate-300 px-3 py-2 text-sm"
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 outline-none"
           >
-            <option value="all">All departments</option>
+            <option value="all">{t("staff.allDepartments")}</option>
             {departments.map((d) => (
               <option key={d} value={d}>
                 {d}
@@ -159,55 +190,57 @@ function AdminStaffView() {
           </select>
           <input
             type="text"
-            placeholder="Search name or email"
+            placeholder={t("staff.searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="rounded border border-slate-300 px-3 py-2 text-sm"
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 outline-none"
           />
         </div>
       </div>
 
       <div className="mb-4 grid gap-4 sm:grid-cols-3">
-        <StatChip icon={Users} label="Total employees" value={employees.length} />
+        <StatChip icon={Users} label={t("staff.totalEmployees")} value={employees.length} />
         <StatChip
           icon={UserCircle2}
-          label="Active"
+          label={t("staff.active")}
           value={employees.filter((e) => e.status === "active").length}
         />
         <StatChip
           icon={UserCircle2}
-          label="With login accounts"
+          label={t("staff.withLogin")}
           value={employees.filter((e) => !!e.user).length}
         />
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-slate-200/60 bg-white/90 shadow-sm backdrop-blur-sm">
         <table className="w-full">
-          <thead className="bg-slate-50">
+          <thead className="bg-slate-50/80">
             <tr>
-              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Employee</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Department</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Position</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Role</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Status</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("dash.employee")}</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("emp.department")}</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("emp.position")}</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("emp.role")}</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("staff.todayAttendance")}</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("emp.employeeStatus")}</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("emp.status")}</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
-                  Loading staff...
+                <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
+                  {t("staff.loading")}
                 </td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
-                  No staff match the current filters.
+                <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
+                  {t("staff.noMatch")}
                 </td>
               </tr>
             ) : (
               filtered.map((e) => (
-                <tr key={e.id} className="border-t border-slate-100">
+                <tr key={e.id} className="border-t border-slate-100 hover:bg-slate-50/50 transition-colors">
                   <td className="px-4 py-3">
                     <div className="font-medium text-slate-900">
                       {e.firstName} {e.lastName}
@@ -227,23 +260,29 @@ function AdminStaffView() {
                   </td>
                   <td className="px-4 py-3 text-sm">
                     {e.user?.role ? (
-                      <span className="rounded bg-slate-100 px-2 py-0.5 text-xs capitalize text-slate-700">
+                      <span className="rounded bg-primary-50 px-2 py-0.5 text-xs capitalize text-primary-700">
                         {e.user.role}
                       </span>
                     ) : (
-                      <span className="text-xs text-slate-400">No account</span>
+                      <span className="text-xs text-slate-400">{t("staff.noAccount")}</span>
                     )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <AttendanceBadge attendance={e.todayAttendance} t={t} />
+                  </td>
+                  <td className="px-4 py-3">
+                    <EmployeeStatusBadge emp={e} t={t} />
                   </td>
                   <td className="px-4 py-3">
                     <span
                       className={cn(
-                        "rounded px-2 py-1 text-xs font-medium",
+                        "rounded-full px-2.5 py-1 text-xs font-medium",
                         e.status === "active"
-                          ? "bg-emerald-100 text-emerald-700"
+                          ? "bg-fresh-100 text-fresh-700"
                           : "bg-slate-100 text-slate-600"
                       )}
                     >
-                      {e.status}
+                      {e.status === "active" ? t("staff.active") : t("staff.inactive")}
                     </span>
                   </td>
                 </tr>
@@ -257,13 +296,14 @@ function AdminStaffView() {
 }
 
 function ManagerStaffView() {
+  const { t } = useLanguage();
   const [employees, setEmployees] = useState<EmployeeWithUser[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
     api
-      .get<EmployeeWithUser[]>("/employees", { params: { status: "active" } })
+      .get<EmployeeWithUser[]>("/employees", { params: { status: "active", includeAttendance: "true" } })
       .then((r) => setEmployees(r.data))
       .finally(() => setLoading(false));
   }, []);
@@ -271,47 +311,48 @@ function ManagerStaffView() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-800">My Team</h1>
+        <h1 className="text-2xl font-bold text-slate-800">{t("staff.myTeam")}</h1>
         <p className="text-sm text-slate-500">
-          Employees in your department with quick access to their core information.
+          {t("staff.myTeamDesc")}
         </p>
       </div>
 
       <div className="mb-4 grid gap-4 sm:grid-cols-2">
-        <StatChip icon={Users} label="Team size" value={employees.length} />
+        <StatChip icon={Users} label={t("staff.teamSize")} value={employees.length} />
         <StatChip
           icon={UserCircle2}
-          label="With login accounts"
+          label={t("staff.withLogin")}
           value={employees.filter((e) => !!e.user).length}
         />
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-slate-200/60 bg-white/90 shadow-sm backdrop-blur-sm">
         <table className="w-full">
-          <thead className="bg-slate-50">
+          <thead className="bg-slate-50/80">
             <tr>
-              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Employee</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Position</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Department</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Login</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("dash.employee")}</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("emp.position")}</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("emp.department")}</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("staff.todayAttendance")}</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("staff.login")}</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
-                  Loading team...
+                <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
+                  {t("staff.loadingTeam")}
                 </td>
               </tr>
             ) : employees.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
-                  No employees found in your department.
+                <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
+                  {t("staff.noEmployees")}
                 </td>
               </tr>
             ) : (
               employees.map((e) => (
-                <tr key={e.id} className="border-t border-slate-100">
+                <tr key={e.id} className="border-t border-slate-100 hover:bg-slate-50/50 transition-colors">
                   <td className="px-4 py-3">
                     <div className="font-medium text-slate-900">
                       {e.firstName} {e.lastName}
@@ -324,13 +365,16 @@ function ManagerStaffView() {
                   <td className="px-4 py-3 text-sm text-slate-700">
                     {e.department?.name ?? "—"}
                   </td>
+                  <td className="px-4 py-3">
+                    <AttendanceBadge attendance={e.todayAttendance} t={t} />
+                  </td>
                   <td className="px-4 py-3 text-sm">
                     {e.user ? (
                       <span className="font-mono text-xs text-slate-700">
                         {e.user.username}
                       </span>
                     ) : (
-                      <span className="text-xs text-slate-400">No account</span>
+                      <span className="text-xs text-slate-400">{t("staff.noAccount")}</span>
                     )}
                   </td>
                 </tr>
@@ -345,6 +389,7 @@ function ManagerStaffView() {
 
 function SelfStaffView() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [profile, setProfile] = useState<EmployeeWithUser | null>(null);
   const [attendance, setAttendance] = useState<SelfAttendance[]>([]);
   const [leave, setLeave] = useState<SelfLeave[]>([]);
@@ -366,11 +411,10 @@ function SelfStaffView() {
 
   if (!user?.employeeId) {
     return (
-      <div className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-amber-800">
-        <p className="font-semibold">No staff profile linked to this account.</p>
+      <div className="rounded-xl border border-warm-200 bg-warm-50 p-6 text-warm-800">
+        <p className="font-semibold">{t("staff.noProfile")}</p>
         <p className="mt-2 text-sm">
-          Please contact HR or an administrator so they can link your login account to an
-          employee profile.
+          {t("staff.contactHR")}
         </p>
       </div>
     );
@@ -378,44 +422,62 @@ function SelfStaffView() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-bold text-slate-800">My Staff Profile</h1>
+      <h1 className="mb-6 text-2xl font-bold text-slate-800">{t("staff.myProfile")}</h1>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-1">
+        <section className="rounded-xl border border-slate-200/60 bg-white/90 p-6 shadow-sm backdrop-blur-sm lg:col-span-1">
           <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-800">
-            <UserCircle2 className="h-5 w-5" /> Personal & Employment
+            <UserCircle2 className="h-5 w-5 text-primary-500" /> {t("staff.personal")}
           </h2>
           {profile ? (
-            <div className="space-y-2 text-sm">
+            <div className="space-y-3 text-sm">
               <div>
-                <div className="text-xs uppercase text-slate-500">Name</div>
+                <div className="text-xs uppercase text-slate-500">{t("emp.name")}</div>
                 <div className="font-medium text-slate-900">
                   {profile.firstName} {profile.lastName}
                 </div>
               </div>
               <div>
-                <div className="text-xs uppercase text-slate-500">Email</div>
+                <div className="text-xs uppercase text-slate-500">{t("emp.email")}</div>
                 <div className="text-slate-800">{profile.email}</div>
               </div>
+              {profile.phone && (
+                <div>
+                  <div className="text-xs uppercase text-slate-500">{t("emp.phone")}</div>
+                  <div className="text-slate-800">{profile.phone}</div>
+                </div>
+              )}
+              {profile.dateOfBirth && (
+                <div>
+                  <div className="text-xs uppercase text-slate-500">{t("emp.dateOfBirth")}</div>
+                  <div className="text-slate-800">{format(new Date(profile.dateOfBirth), "dd/MM/yyyy")}</div>
+                </div>
+              )}
+              {profile.address && (
+                <div>
+                  <div className="text-xs uppercase text-slate-500">{t("emp.address")}</div>
+                  <div className="text-slate-800">{profile.address}</div>
+                </div>
+              )}
               <div>
-                <div className="text-xs uppercase text-slate-500">Department</div>
+                <div className="text-xs uppercase text-slate-500">{t("emp.department")}</div>
                 <div className="text-slate-800">
                   {profile.department?.name ?? "Not assigned"}
                 </div>
               </div>
               <div>
-                <div className="text-xs uppercase text-slate-500">Position</div>
+                <div className="text-xs uppercase text-slate-500">{t("emp.position")}</div>
                 <div className="text-slate-800">
                   {profile.position?.name ?? "Not assigned"}
                 </div>
               </div>
               <div>
-                <div className="text-xs uppercase text-slate-500">Status</div>
+                <div className="text-xs uppercase text-slate-500">{t("emp.status")}</div>
                 <div className="text-slate-800 capitalize">{profile.status}</div>
               </div>
               {profile.baseSalary != null && (
                 <div>
-                  <div className="text-xs uppercase text-slate-500">Base salary</div>
+                  <div className="text-xs uppercase text-slate-500">{t("dash.baseSalary")}</div>
                   <div className="text-slate-800">
                     {(profile.baseSalary / 1_000_000).toFixed(1)}M VND / month
                   </div>
@@ -423,24 +485,24 @@ function SelfStaffView() {
               )}
             </div>
           ) : (
-            <p className="text-sm text-slate-500">Loading profile...</p>
+            <p className="text-sm text-slate-500">{t("staff.loadingProfile")}</p>
           )}
         </section>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
+        <section className="rounded-xl border border-slate-200/60 bg-white/90 p-6 shadow-sm backdrop-blur-sm lg:col-span-2">
           <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-800">
-            <ClipboardCheck className="h-5 w-5" /> Recent Attendance
+            <ClipboardCheck className="h-5 w-5 text-fresh-500" /> {t("staff.recentAttendance")}
           </h2>
           {attendance.length === 0 ? (
-            <p className="text-sm text-slate-500">No attendance records yet.</p>
+            <p className="text-sm text-slate-500">{t("staff.noAttendance")}</p>
           ) : (
             <table className="w-full text-sm">
-              <thead className="bg-slate-50">
+              <thead className="bg-slate-50/80">
                 <tr>
-                  <th className="px-3 py-2 text-left font-medium text-slate-600">Date</th>
-                  <th className="px-3 py-2 text-left font-medium text-slate-600">Check in</th>
-                  <th className="px-3 py-2 text-left font-medium text-slate-600">Check out</th>
-                  <th className="px-3 py-2 text-left font-medium text-slate-600">Status</th>
+                  <th className="px-3 py-2 text-left font-medium text-slate-600">{t("staff.date")}</th>
+                  <th className="px-3 py-2 text-left font-medium text-slate-600">{t("staff.checkIn")}</th>
+                  <th className="px-3 py-2 text-left font-medium text-slate-600">{t("staff.checkOut")}</th>
+                  <th className="px-3 py-2 text-left font-medium text-slate-600">{t("emp.status")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -456,7 +518,13 @@ function SelfStaffView() {
                       {a.checkOut ? format(new Date(a.checkOut), "HH:mm") : "—"}
                     </td>
                     <td className="px-3 py-2">
-                      <span className="rounded bg-slate-100 px-2 py-0.5 text-xs capitalize text-slate-700">
+                      <span className={cn(
+                        "rounded-full px-2 py-0.5 text-xs font-medium",
+                        a.status === "present" ? "bg-fresh-100 text-fresh-700" :
+                        a.status === "late" ? "bg-warm-100 text-warm-700" :
+                        a.status === "absent" ? "bg-coral-100 text-coral-700" :
+                        "bg-slate-100 text-slate-700"
+                      )}>
                         {a.status}
                       </span>
                     </td>
@@ -468,22 +536,22 @@ function SelfStaffView() {
         </section>
       </div>
 
-      <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <section className="mt-6 rounded-xl border border-slate-200/60 bg-white/90 p-6 shadow-sm backdrop-blur-sm">
         <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-800">
-          <CalendarDays className="h-5 w-5" /> Recent Leave
+          <CalendarDays className="h-5 w-5 text-accent-500" /> {t("staff.recentLeave")}
         </h2>
         {leave.length === 0 ? (
           <p className="text-sm text-slate-500">
-            You have no recent or pending leave requests.
+            {t("staff.noLeave")}
           </p>
         ) : (
           <table className="w-full text-sm">
-            <thead className="bg-slate-50">
+            <thead className="bg-slate-50/80">
               <tr>
-                <th className="px-3 py-2 text-left font-medium text-slate-600">Type</th>
-                <th className="px-3 py-2 text-left font-medium text-slate-600">Start</th>
-                <th className="px-3 py-2 text-left font-medium text-slate-600">End</th>
-                <th className="px-3 py-2 text-left font-medium text-slate-600">Status</th>
+                <th className="px-3 py-2 text-left font-medium text-slate-600">{t("staff.type")}</th>
+                <th className="px-3 py-2 text-left font-medium text-slate-600">{t("staff.start")}</th>
+                <th className="px-3 py-2 text-left font-medium text-slate-600">{t("staff.end")}</th>
+                <th className="px-3 py-2 text-left font-medium text-slate-600">{t("emp.status")}</th>
               </tr>
             </thead>
             <tbody>
@@ -499,12 +567,12 @@ function SelfStaffView() {
                   <td className="px-3 py-2">
                     <span
                       className={cn(
-                        "rounded px-2 py-0.5 text-xs capitalize",
+                        "rounded-full px-2 py-0.5 text-xs font-medium capitalize",
                         l.status === "approved"
-                          ? "bg-emerald-100 text-emerald-700"
+                          ? "bg-fresh-100 text-fresh-700"
                           : l.status === "rejected"
-                            ? "bg-red-100 text-red-700"
-                            : "bg-amber-100 text-amber-700"
+                            ? "bg-coral-100 text-coral-700"
+                            : "bg-warm-100 text-warm-700"
                       )}
                     >
                       {l.status}
@@ -530,7 +598,7 @@ function StatChip({
   value: number;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="flex items-center gap-3 rounded-xl border border-slate-200/60 bg-white/90 p-4 shadow-sm backdrop-blur-sm">
       <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-50 text-primary-600">
         <Icon className="h-5 w-5" />
       </div>
@@ -543,4 +611,3 @@ function StatChip({
     </div>
   );
 }
-

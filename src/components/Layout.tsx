@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -19,43 +20,44 @@ import {
   KeyRound,
   ChevronDown,
   ChevronRight,
+  Globe,
 } from "lucide-react";
 
 type NavItem = {
   href: string;
-  label: string;
+  labelKey: string;
   icon: React.ElementType;
   roles?: string[];
 };
 
 type NavGroup = {
-  label: string;
+  labelKey: string;
   icon: React.ElementType;
   items: NavItem[];
   roles?: string[];
 };
 
 const navItems: (NavItem | NavGroup)[] = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/staff", label: "Staff", icon: Users, roles: ["admin", "manager", "staff"] },
-  { href: "/password-requests", label: "Password Requests", icon: KeyRound, roles: ["admin"] },
-  { href: "/employees", label: "Employees", icon: Users, roles: ["admin", "manager"] },
-  { href: "/schedules", label: "Shift Schedule", icon: Calendar, roles: ["admin", "manager"] },
+  { href: "/dashboard", labelKey: "nav.dashboard", icon: LayoutDashboard },
+  { href: "/staff", labelKey: "nav.staff", icon: Users, roles: ["admin", "manager", "staff"] },
+  { href: "/password-requests", labelKey: "nav.passwordRequests", icon: KeyRound, roles: ["admin"] },
+  { href: "/employees", labelKey: "nav.employees", icon: Users, roles: ["admin", "manager"] },
+  { href: "/schedules", labelKey: "nav.shiftSchedule", icon: Calendar, roles: ["admin", "manager"] },
   {
-    label: "Timekeeping",
+    labelKey: "nav.timekeeping",
     icon: Clock,
     items: [
-      { href: "/attendance", label: "Attendance", icon: ClipboardCheck },
-      { href: "/work-hours", label: "Work Hours", icon: Clock },
-      { href: "/leave", label: "Leave", icon: CalendarDays },
-      { href: "/overtime", label: "Overtime", icon: Clock },
-      { href: "/leave-approvals", label: "Leave Approvals", icon: ClipboardCheck, roles: ["admin", "manager"] },
-      { href: "/overtime-approvals", label: "Overtime Approvals", icon: Clock, roles: ["admin", "manager"] },
+      { href: "/attendance", labelKey: "nav.attendance", icon: ClipboardCheck },
+      { href: "/work-hours", labelKey: "nav.workHours", icon: Clock },
+      { href: "/leave", labelKey: "nav.leave", icon: CalendarDays },
+      { href: "/overtime", labelKey: "nav.overtime", icon: Clock },
+      { href: "/leave-approvals", labelKey: "nav.leaveApprovals", icon: ClipboardCheck, roles: ["admin", "manager"] },
+      { href: "/overtime-approvals", labelKey: "nav.overtimeApprovals", icon: Clock, roles: ["admin", "manager"] },
     ],
   },
-  { href: "/trainings", label: "Training", icon: GraduationCap },
-  { href: "/policies", label: "Policy Docs", icon: FileText },
-  { href: "/ai-assistant", label: "HR Assistant", icon: MessageCircle },
+  { href: "/trainings", labelKey: "nav.training", icon: GraduationCap },
+  { href: "/policies", labelKey: "nav.policies", icon: FileText },
+  { href: "/ai-assistant", labelKey: "nav.hrAssistant", icon: MessageCircle },
 ];
 
 function isNavGroup(item: NavItem | NavGroup): item is NavGroup {
@@ -66,12 +68,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuth();
+  const { locale, setLocale, t } = useLanguage();
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
-    Timekeeping: true,
+    "nav.timekeeping": true,
   });
 
-  const toggleGroup = (label: string) => {
-    setOpenGroups((prev) => ({ ...prev, [label]: !prev[label] }));
+  const toggleGroup = (labelKey: string) => {
+    setOpenGroups((prev) => ({ ...prev, [labelKey]: !prev[labelKey] }));
   };
 
   const canSeeItem = (item: NavItem) => {
@@ -93,33 +96,45 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     router.replace("/login");
   };
 
+  const toggleLang = () => {
+    setLocale(locale === "en" ? "vi" : "en");
+  };
+
   return (
     <div className="flex min-h-screen">
-      <aside className="flex w-64 flex-col border-r border-slate-200 bg-white">
-        <div className="flex h-16 shrink-0 items-center border-b border-slate-200 px-4">
-          <Link href="/dashboard" className="font-semibold text-slate-800">
-            Staff Management
+      <aside className="flex w-64 flex-col bg-gradient-to-b from-primary-600 via-primary-700 to-accent-700">
+        <div className="flex h-16 shrink-0 items-center justify-between border-b border-white/10 px-4">
+          <Link href="/dashboard" className="font-bold text-white text-sm">
+            {t("app.title")}
           </Link>
+          <button
+            onClick={toggleLang}
+            className="flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-xs font-semibold text-white transition-all hover:bg-white/25"
+            title={locale === "en" ? "Switch to Vietnamese" : "Chuyển sang Tiếng Anh"}
+          >
+            <Globe className="h-3.5 w-3.5" />
+            {locale === "en" ? "VI" : "EN"}
+          </button>
         </div>
         <nav className="flex-1 overflow-auto p-2">
           {navItems.map((item) => {
             if (isNavGroup(item)) {
               if (!canSeeGroup(item) || !hasVisibleItems(item)) return null;
-              const isOpen = openGroups[item.label] ?? false;
+              const isOpen = openGroups[item.labelKey] ?? false;
               const isActive = item.items.some((i) => pathname === i.href);
               return (
-                <div key={item.label}>
+                <div key={item.labelKey}>
                   <button
                     type="button"
-                    onClick={() => toggleGroup(item.label)}
+                    onClick={() => toggleGroup(item.labelKey)}
                     className={cn(
                       "flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                      isActive ? "bg-primary-50 text-primary-700" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                      isActive ? "bg-white/20 text-white" : "text-white/70 hover:bg-white/10 hover:text-white"
                     )}
                   >
                     <div className="flex items-center gap-3">
                       <item.icon className="h-4 w-4 shrink-0" />
-                      {item.label}
+                      {t(item.labelKey)}
                     </div>
                     {isOpen ? (
                       <ChevronDown className="h-4 w-4 shrink-0" />
@@ -128,7 +143,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                     )}
                   </button>
                   {isOpen && (
-                    <div className="ml-4 mt-1 space-y-0.5 border-l border-slate-200 pl-2">
+                    <div className="ml-4 mt-1 space-y-0.5 border-l border-white/20 pl-2">
                       {item.items
                         .filter((i) => canSeeItem(i))
                         .map((subItem) => (
@@ -138,12 +153,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                             className={cn(
                               "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
                               pathname === subItem.href
-                                ? "bg-primary-50 font-medium text-primary-700"
-                                : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                                ? "bg-white/20 font-medium text-white"
+                                : "text-white/60 hover:bg-white/10 hover:text-white"
                             )}
                           >
                             <subItem.icon className="h-4 w-4 shrink-0" />
-                            {subItem.label}
+                            {t(subItem.labelKey)}
                           </Link>
                         ))}
                     </div>
@@ -159,26 +174,26 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                   pathname === item.href
-                    ? "bg-primary-50 text-primary-700"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                    ? "bg-white/20 text-white"
+                    : "text-white/70 hover:bg-white/10 hover:text-white"
                 )}
               >
                 <item.icon className="h-4 w-4" />
-                {item.label}
+                {t(item.labelKey)}
               </Link>
             );
           })}
         </nav>
-        <div className="mt-auto border-t border-slate-200 p-2">
-          <div className="mb-2 px-3 py-2 text-xs text-slate-500">
+        <div className="mt-auto border-t border-white/10 p-2">
+          <div className="mb-2 px-3 py-2 text-xs text-white/60">
             {user?.employee ? `${user.employee.firstName} ${user.employee.lastName}` : user?.username} ({user?.role})
           </div>
           <button
             onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-100"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-white/70 hover:bg-white/10 hover:text-white"
           >
             <LogOut className="h-4 w-4" />
-            Logout
+            {t("nav.logout")}
           </button>
         </div>
       </aside>
