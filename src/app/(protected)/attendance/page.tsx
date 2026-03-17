@@ -395,11 +395,20 @@ export default function AttendancePage() {
                   </td>
                   <td className="px-4 py-3">
                     <span
-                      className={`rounded px-2 py-1 text-xs ${
-                        a.status === "present" ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                      className={`rounded px-2 py-1 text-xs font-medium ${
+                        a.status === "present" 
+                          ? "bg-success-100 text-success-700" 
+                          : a.status === "absent"
+                          ? "bg-danger-100 text-danger-700"
+                          : a.status === "late"
+                          ? "bg-warning-100 text-warning-700"
+                          : "bg-slate-100 text-slate-700"
                       }`}
                     >
-                      {a.status}
+                      {a.status === "present" ? "Đúng giờ" :
+                       a.status === "absent" ? "Nghỉ" :
+                       a.status === "late" ? "Muộn" :
+                       "Chưa xác nhận"}
                     </span>
                   </td>
                   {viewMode === "period" && (

@@ -11,6 +11,10 @@ type Employee = {
   firstName: string;
   lastName: string;
   email: string;
+  phone?: string | null;
+  address?: string | null;
+  dateOfBirth?: string | null;
+  contractEndDate?: string | null;
   status: string;
   department?: { name: string } | null;
   position?: { name: string } | null;
@@ -58,6 +62,9 @@ export default function EmployeesPage() {
           lastName: data.lastName,
           email: data.email,
           phone: data.phone || null,
+          address: data.address || null,
+          dateOfBirth: data.dateOfBirth || null,
+          contractEndDate: data.contractEndDate || null,
           departmentId: data.departmentId || null,
           positionId: data.positionId || null,
           status: data.status,
@@ -69,6 +76,9 @@ export default function EmployeesPage() {
           lastName: data.lastName,
           email: data.email,
           phone: data.phone || null,
+          address: data.address || null,
+          dateOfBirth: data.dateOfBirth || null,
+          contractEndDate: data.contractEndDate || null,
           hireDate: data.hireDate || new Date().toISOString().slice(0, 10),
           departmentId: data.departmentId || null,
           positionId: data.positionId || null,
@@ -136,7 +146,10 @@ export default function EmployeesPage() {
             <input name="firstName" placeholder="First name" required defaultValue={editing?.firstName} className="rounded border px-3 py-2" />
             <input name="lastName" placeholder="Last name" required defaultValue={editing?.lastName} className="rounded border px-3 py-2" />
             <input name="email" type="email" placeholder="Email" required defaultValue={editing?.email} className="rounded border px-3 py-2" />
-            <input name="phone" placeholder="Phone" defaultValue={editing ? (editing as Employee & { phone?: string }).phone : undefined} className="rounded border px-3 py-2" />
+            <input name="phone" placeholder="Phone" defaultValue={editing?.phone || undefined} className="rounded border px-3 py-2" />
+            <input name="address" placeholder="Address" defaultValue={editing?.address || undefined} className="rounded border px-3 py-2 sm:col-span-2" />
+            <input name="dateOfBirth" type="date" placeholder="Date of Birth" defaultValue={editing?.dateOfBirth ? editing.dateOfBirth.split('T')[0] : undefined} className="rounded border px-3 py-2" />
+            <input name="contractEndDate" type="date" placeholder="Contract End Date" defaultValue={editing?.contractEndDate ? editing.contractEndDate.split('T')[0] : undefined} className="rounded border px-3 py-2" />
             {!editing && <input name="hireDate" type="date" required className="rounded border px-3 py-2" />}
             {!editing && (
               <input
@@ -217,32 +230,44 @@ export default function EmployeesPage() {
       )}
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full">
+        <table className="w-full text-sm">
           <thead className="bg-slate-50">
             <tr>
-              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Name</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Email</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Department</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Position</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Status</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Name</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Phone</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Address</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">DOB</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Department</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Position</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Status</th>
               {isAdmin && <th className="px-4 py-3"></th>}
             </tr>
           </thead>
           <tbody>
             {employees.map((emp) => (
-              <tr key={emp.id} className="border-t border-slate-100">
+              <tr key={emp.id} className="border-t border-slate-100 hover:bg-slate-50">
                 <td className="px-4 py-3 font-medium">{emp.firstName} {emp.lastName}</td>
-                <td className="px-4 py-3 text-slate-600">{emp.email}</td>
+                <td className="px-4 py-3 text-slate-600">{emp.phone || "—"}</td>
+                <td className="px-4 py-3 text-slate-600 text-xs">{emp.address ? emp.address.substring(0, 30) + (emp.address.length > 30 ? "..." : "") : "—"}</td>
+                <td className="px-4 py-3 text-slate-600">
+                  {emp.dateOfBirth ? new Date(emp.dateOfBirth).toLocaleDateString("vi-VN") : "—"}
+                </td>
                 <td className="px-4 py-3">{emp.department?.name ?? "—"}</td>
                 <td className="px-4 py-3">{emp.position?.name ?? "—"}</td>
                 <td>
                   <span
                     className={cn(
                       "rounded px-2 py-1 text-xs font-medium",
-                      emp.status === "active" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
+                      emp.status === "active" ? "bg-success-100 text-success-700" : 
+                      emp.status === "contract_ending_soon" ? "bg-warning-100 text-warning-700" :
+                      emp.status === "left" ? "bg-danger-100 text-danger-700" :
+                      "bg-slate-100 text-slate-600"
                     )}
                   >
-                    {emp.status}
+                    {emp.status === "active" ? "Đang làm" : 
+                     emp.status === "contract_ending_soon" ? "Sắp hết HĐ" :
+                     emp.status === "left" ? "Đã nghỉ" :
+                     emp.status}
                   </span>
                 </td>
                 {isAdmin && (
