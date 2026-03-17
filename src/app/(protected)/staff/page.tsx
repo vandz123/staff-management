@@ -162,9 +162,17 @@ function AdminStaffView() {
             onChange={(e) => setStatusFilter(e.target.value)}
             className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 outline-none"
           >
+<<<<<<< HEAD
             <option value="all">{t("staff.allStatuses")}</option>
             <option value="active">{t("staff.active")}</option>
             <option value="inactive">{t("staff.inactive")}</option>
+=======
+            <option value="all">Tất cả trạng thái</option>
+            <option value="active">Đang làm</option>
+            <option value="contract_ending_soon">Sắp hết hợp đồng</option>
+            <option value="left">Đã nghỉ</option>
+            <option value="inactive">Không hoạt động</option>
+>>>>>>> 9abf6cda9ff002082fab1b990049f7e110b5c836
           </select>
           <select
             value={roleFilter}
@@ -216,6 +224,7 @@ function AdminStaffView() {
         <table className="w-full">
           <thead className="bg-slate-50/80">
             <tr>
+<<<<<<< HEAD
               <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("dash.employee")}</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("emp.department")}</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("emp.position")}</th>
@@ -223,6 +232,13 @@ function AdminStaffView() {
               <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("staff.todayAttendance")}</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("emp.employeeStatus")}</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("emp.status")}</th>
+=======
+              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Employee</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Department</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Position</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Role</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Employee Status</th>
+>>>>>>> 9abf6cda9ff002082fab1b990049f7e110b5c836
             </tr>
           </thead>
           <tbody>
@@ -240,7 +256,11 @@ function AdminStaffView() {
               </tr>
             ) : (
               filtered.map((e) => (
+<<<<<<< HEAD
                 <tr key={e.id} className="border-t border-slate-100 hover:bg-slate-50/50 transition-colors">
+=======
+                <tr key={e.id} className="border-t border-slate-100 hover:bg-slate-50">
+>>>>>>> 9abf6cda9ff002082fab1b990049f7e110b5c836
                   <td className="px-4 py-3">
                     <div className="font-medium text-slate-900">
                       {e.firstName} {e.lastName}
@@ -278,11 +298,26 @@ function AdminStaffView() {
                       className={cn(
                         "rounded-full px-2.5 py-1 text-xs font-medium",
                         e.status === "active"
+<<<<<<< HEAD
                           ? "bg-fresh-100 text-fresh-700"
                           : "bg-slate-100 text-slate-600"
                       )}
                     >
                       {e.status === "active" ? t("staff.active") : t("staff.inactive")}
+=======
+                          ? "bg-success-100 text-success-700"
+                          : e.status === "contract_ending_soon"
+                          ? "bg-warning-100 text-warning-700"
+                          : e.status === "left"
+                          ? "bg-danger-100 text-danger-700"
+                          : "bg-slate-100 text-slate-600"
+                      )}
+                    >
+                      {e.status === "active" ? "Đang làm" :
+                       e.status === "contract_ending_soon" ? "Sắp hết HĐ" :
+                       e.status === "left" ? "Đã nghỉ" :
+                       "Không hoạt động"}
+>>>>>>> 9abf6cda9ff002082fab1b990049f7e110b5c836
                     </span>
                   </td>
                 </tr>

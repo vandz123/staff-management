@@ -145,6 +145,8 @@ model AttendanceCorrectionRequest {
 enum EmployeeStatus {
   active
   inactive
+  contract_ending_soon
+  left
 }
 
 model Department {
