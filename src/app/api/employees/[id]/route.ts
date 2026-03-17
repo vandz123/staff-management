@@ -28,7 +28,6 @@ export async function PATCH(
 
   const { id } = await params;
   const body = await req.json();
-<<<<<<< HEAD
   const data: {
     firstName?: string;
     lastName?: string;
@@ -48,16 +47,6 @@ export async function PATCH(
   if (body.phone !== undefined) data.phone = body.phone || null;
   if (body.address !== undefined) data.address = body.address || null;
   if (body.dateOfBirth !== undefined) data.dateOfBirth = body.dateOfBirth ? new Date(body.dateOfBirth) : null;
-=======
-  const data: Record<string, any> = {};
-  if (body.firstName !== undefined) data.firstName = body.firstName;
-  if (body.lastName !== undefined) data.lastName = body.lastName;
-  if (body.email !== undefined) data.email = body.email;
-  if (body.phone !== undefined) data.phone = body.phone;
-  if (body.address !== undefined) data.address = body.address;
-  if (body.dateOfBirth !== undefined) data.dateOfBirth = body.dateOfBirth ? new Date(body.dateOfBirth) : null;
-  if (body.contractEndDate !== undefined) data.contractEndDate = body.contractEndDate ? new Date(body.contractEndDate) : null;
->>>>>>> 9abf6cda9ff002082fab1b990049f7e110b5c836
   if (body.hireDate !== undefined) data.hireDate = new Date(body.hireDate);
   if (body.contractEndDate !== undefined) data.contractEndDate = body.contractEndDate ? new Date(body.contractEndDate) : null;
   if (body.departmentId !== undefined) data.departmentId = body.departmentId;

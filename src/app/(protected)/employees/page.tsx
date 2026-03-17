@@ -98,10 +98,6 @@ export default function EmployeesPage() {
           phone: data.phone || null,
           address: data.address || null,
           dateOfBirth: data.dateOfBirth || null,
-<<<<<<< HEAD
-=======
-          contractEndDate: data.contractEndDate || null,
->>>>>>> 9abf6cda9ff002082fab1b990049f7e110b5c836
           hireDate: data.hireDate || new Date().toISOString().slice(0, 10),
           contractEndDate: data.contractEndDate || null,
           departmentId: data.departmentId || null,
@@ -165,7 +161,6 @@ export default function EmployeesPage() {
           onSubmit={handleSubmit}
           className="mb-6 rounded-xl border border-slate-200/60 bg-white/90 p-6 shadow-sm backdrop-blur-sm"
         >
-<<<<<<< HEAD
           <h2 className="mb-4 font-semibold">{editing ? t("emp.editEmployee") : t("emp.newEmployee")}</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <input name="firstName" placeholder={t("emp.firstName")} required defaultValue={editing?.firstName} className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 focus:ring-1 focus:ring-primary-400 outline-none" />
@@ -187,18 +182,6 @@ export default function EmployeesPage() {
               <label className="mb-1 block text-xs text-slate-500">{t("emp.contractEndDate")}</label>
               <input name="contractEndDate" type="date" defaultValue={editing?.contractEndDate?.slice(0, 10) ?? ""} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 focus:ring-1 focus:ring-primary-400 outline-none" />
             </div>
-=======
-          <h2 className="mb-4 font-semibold">{editing ? "Edit Employee" : "New Employee"}</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <input name="firstName" placeholder="First name" required defaultValue={editing?.firstName} className="rounded border px-3 py-2" />
-            <input name="lastName" placeholder="Last name" required defaultValue={editing?.lastName} className="rounded border px-3 py-2" />
-            <input name="email" type="email" placeholder="Email" required defaultValue={editing?.email} className="rounded border px-3 py-2" />
-            <input name="phone" placeholder="Phone" defaultValue={editing?.phone || undefined} className="rounded border px-3 py-2" />
-            <input name="address" placeholder="Address" defaultValue={editing?.address || undefined} className="rounded border px-3 py-2 sm:col-span-2" />
-            <input name="dateOfBirth" type="date" placeholder="Date of Birth" defaultValue={editing?.dateOfBirth ? editing.dateOfBirth.split('T')[0] : undefined} className="rounded border px-3 py-2" />
-            <input name="contractEndDate" type="date" placeholder="Contract End Date" defaultValue={editing?.contractEndDate ? editing.contractEndDate.split('T')[0] : undefined} className="rounded border px-3 py-2" />
-            {!editing && <input name="hireDate" type="date" required className="rounded border px-3 py-2" />}
->>>>>>> 9abf6cda9ff002082fab1b990049f7e110b5c836
             {!editing && (
               <input
                 name="baseSalary"
@@ -277,7 +260,6 @@ export default function EmployeesPage() {
         </form>
       )}
 
-<<<<<<< HEAD
       <div className="overflow-hidden rounded-xl border border-slate-200/60 bg-white/90 shadow-sm backdrop-blur-sm">
         <table className="w-full">
           <thead className="bg-slate-50/80">
@@ -289,24 +271,10 @@ export default function EmployeesPage() {
               <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("emp.position")}</th>
               {isAdmin && <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("emp.employeeStatus")}</th>}
               <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("emp.status")}</th>
-=======
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Name</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Phone</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Address</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">DOB</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Department</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Position</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-600">Status</th>
->>>>>>> 9abf6cda9ff002082fab1b990049f7e110b5c836
               {isAdmin && <th className="px-4 py-3"></th>}
             </tr>
           </thead>
           <tbody>
-<<<<<<< HEAD
             {employees.map((emp) => {
               const empStatus = getEmployeeStatus(emp, t);
               return (
@@ -329,42 +297,6 @@ export default function EmployeesPage() {
                         "rounded-full px-2.5 py-1 text-xs font-medium",
                         emp.status === "active" ? "bg-fresh-100 text-fresh-700" : "bg-slate-100 text-slate-600"
                       )}
-=======
-            {employees.map((emp) => (
-              <tr key={emp.id} className="border-t border-slate-100 hover:bg-slate-50">
-                <td className="px-4 py-3 font-medium">{emp.firstName} {emp.lastName}</td>
-                <td className="px-4 py-3 text-slate-600">{emp.phone || "—"}</td>
-                <td className="px-4 py-3 text-slate-600 text-xs">{emp.address ? emp.address.substring(0, 30) + (emp.address.length > 30 ? "..." : "") : "—"}</td>
-                <td className="px-4 py-3 text-slate-600">
-                  {emp.dateOfBirth ? new Date(emp.dateOfBirth).toLocaleDateString("vi-VN") : "—"}
-                </td>
-                <td className="px-4 py-3">{emp.department?.name ?? "—"}</td>
-                <td className="px-4 py-3">{emp.position?.name ?? "—"}</td>
-                <td>
-                  <span
-                    className={cn(
-                      "rounded px-2 py-1 text-xs font-medium",
-                      emp.status === "active" ? "bg-success-100 text-success-700" : 
-                      emp.status === "contract_ending_soon" ? "bg-warning-100 text-warning-700" :
-                      emp.status === "left" ? "bg-danger-100 text-danger-700" :
-                      "bg-slate-100 text-slate-600"
-                    )}
-                  >
-                    {emp.status === "active" ? "Đang làm" : 
-                     emp.status === "contract_ending_soon" ? "Sắp hết HĐ" :
-                     emp.status === "left" ? "Đã nghỉ" :
-                     emp.status}
-                  </span>
-                </td>
-                {isAdmin && (
-                  <td className="px-4 py-3">
-                    <button
-                      onClick={() => {
-                        setEditing(emp);
-                        setShowForm(true);
-                      }}
-                      className="mr-2 text-primary-600 hover:underline"
->>>>>>> 9abf6cda9ff002082fab1b990049f7e110b5c836
                     >
                       {emp.status === "active" ? t("staff.active") : t("staff.inactive")}
                     </span>

@@ -22,7 +22,6 @@ import {
   Calendar,
   MessageCircle,
 } from "lucide-react";
-import { AttendanceChart, EmployeeStatusChart, DepartmentAttendanceChart, OvertimeChart, LeaveChart } from "@/components/DashboardCharts";
 
 type DashboardData = {
   role: string;
@@ -312,36 +311,7 @@ export default function DashboardPage() {
         </section>
 
         <section className="mb-8">
-<<<<<<< HEAD
           <h2 className="mb-3 text-lg font-semibold text-slate-700">{t("dash.trainingStatus")}</h2>
-=======
-          <h2 className="mb-3 text-lg font-semibold text-slate-700">Analytics Dashboard</h2>
-          <div className="grid gap-8 lg:grid-cols-2">
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h3 className="mb-4 font-semibold text-slate-700">Attendance Trends</h3>
-              <AttendanceChart 
-                data={[
-                  { name: "Today", present: as.present, absent: as.absent, late: as.late },
-                  { name: "Weekly Avg", present: Math.round(as.present * 0.8), absent: Math.round(as.absent * 1.2), late: Math.round(as.late * 0.9) }
-                ]} 
-              />
-            </div>
-            <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h3 className="mb-4 font-semibold text-slate-700">Employee Status Distribution</h3>
-              <EmployeeStatusChart 
-                data={[
-                  { name: "Active", value: wo.activeEmployees },
-                  { name: "Inactive", value: wo.inactiveEmployees },
-                  { name: "New", value: wo.newThisMonth }
-                ]} 
-              />
-            </div>
-          </div>
-        </section>
-
-        <section className="mb-8">
-          <h2 className="mb-3 text-lg font-semibold text-slate-700">Training Status</h2>
->>>>>>> 9abf6cda9ff002082fab1b990049f7e110b5c836
           <div className="grid gap-4 sm:grid-cols-3">
             <StatCard title={t("dash.completed")} value={data.trainingStatus?.completed ?? 0} icon={GraduationCap} color="bg-fresh-500" />
             <StatCard title={t("dash.pending")} value={data.trainingStatus?.pending ?? 0} icon={Clock} color="bg-warm-500" />
