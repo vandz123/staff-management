@@ -131,9 +131,11 @@ function AdminStaffView() {
             onChange={(e) => setStatusFilter(e.target.value)}
             className="rounded border border-slate-300 px-3 py-2 text-sm"
           >
-            <option value="all">All statuses</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
+            <option value="all">Tất cả trạng thái</option>
+            <option value="active">Đang làm</option>
+            <option value="contract_ending_soon">Sắp hết hợp đồng</option>
+            <option value="left">Đã nghỉ</option>
+            <option value="inactive">Không hoạt động</option>
           </select>
           <select
             value={roleFilter}
@@ -189,7 +191,7 @@ function AdminStaffView() {
               <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Department</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Position</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Role</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Status</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Employee Status</th>
             </tr>
           </thead>
           <tbody>
@@ -207,7 +209,7 @@ function AdminStaffView() {
               </tr>
             ) : (
               filtered.map((e) => (
-                <tr key={e.id} className="border-t border-slate-100">
+                <tr key={e.id} className="border-t border-slate-100 hover:bg-slate-50">
                   <td className="px-4 py-3">
                     <div className="font-medium text-slate-900">
                       {e.firstName} {e.lastName}
@@ -239,11 +241,18 @@ function AdminStaffView() {
                       className={cn(
                         "rounded px-2 py-1 text-xs font-medium",
                         e.status === "active"
-                          ? "bg-emerald-100 text-emerald-700"
+                          ? "bg-success-100 text-success-700"
+                          : e.status === "contract_ending_soon"
+                          ? "bg-warning-100 text-warning-700"
+                          : e.status === "left"
+                          ? "bg-danger-100 text-danger-700"
                           : "bg-slate-100 text-slate-600"
                       )}
                     >
-                      {e.status}
+                      {e.status === "active" ? "Đang làm" :
+                       e.status === "contract_ending_soon" ? "Sắp hết HĐ" :
+                       e.status === "left" ? "Đã nghỉ" :
+                       "Không hoạt động"}
                     </span>
                   </td>
                 </tr>
