@@ -67,3 +67,4 @@ prisma/
 ├── schema.prisma
 └── seed.ts
 ```
+# staff-management-2
