@@ -18,7 +18,7 @@ export function requireAuth(handler: (req: NextRequest, auth: JWTPayload) => Pro
   };
 }
 
-export function requireRole(...roles: Array<"admin" | "manager" | "staff">) {
+export function requireRole(...roles: Array<"admin" | "staff">) {
   return (handler: (req: NextRequest, auth: JWTPayload) => Promise<NextResponse>) => {
     return async (req: NextRequest) => {
       const auth = await getAuth(req);

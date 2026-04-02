@@ -31,6 +31,7 @@ async function main() {
   const adminEmp = await prisma.employee.upsert({
     where: { email: "admin@company.com" },
     update: {
+      employeeCode: "NV001",
       baseSalary: 20000000,
       annualLeaveBalance: 12,
       phone: "0901234567",
@@ -39,6 +40,7 @@ async function main() {
       contractEndDate: new Date("2027-12-31"),
     },
     create: {
+      employeeCode: "NV001",
       firstName: "Admin",
       lastName: "Nguyễn",
       email: "admin@company.com",
@@ -67,6 +69,7 @@ async function main() {
   const managerEmp = await prisma.employee.upsert({
     where: { email: "manager@company.com" },
     update: {
+      employeeCode: "NV002",
       baseSalary: 18000000,
       annualLeaveBalance: 12,
       phone: "0912345678",
@@ -75,6 +78,7 @@ async function main() {
       contractEndDate: new Date("2026-06-30"),
     },
     create: {
+      employeeCode: "NV002",
       firstName: "Minh",
       lastName: "Trần",
       email: "manager@company.com",
@@ -91,11 +95,11 @@ async function main() {
   });
   await prisma.user.upsert({
     where: { username: "manager" },
-    update: {},
+    update: { role: UserRole.staff },
     create: {
       username: "manager",
       passwordHash,
-      role: UserRole.manager,
+      role: UserRole.staff,
       employeeId: managerEmp.id,
     },
   });
@@ -103,6 +107,7 @@ async function main() {
   const staffEmp = await prisma.employee.upsert({
     where: { email: "staff@company.com" },
     update: {
+      employeeCode: "NV003",
       baseSalary: 15000000,
       annualLeaveBalance: 12,
       phone: "0923456789",
@@ -111,6 +116,7 @@ async function main() {
       contractEndDate: new Date("2026-04-15"),
     },
     create: {
+      employeeCode: "NV003",
       firstName: "Hương",
       lastName: "Lê",
       email: "staff@company.com",
@@ -201,6 +207,18 @@ async function main() {
           status = "absent";
         }
 
+        // Determine late/early flags
+        let isLate = false;
+        let isEarlyLeave = false;
+        if (checkIn) {
+          const mins = checkIn.getHours() * 60 + checkIn.getMinutes();
+          isLate = mins > 8 * 60 + 10; // after 8:10
+        }
+        if (checkOut) {
+          const mins = checkOut.getHours() * 60 + checkOut.getMinutes();
+          isEarlyLeave = mins < 17 * 60 + 40; // before 17:40
+        }
+
         await prisma.attendance.upsert({
           where: {
             employeeId_workDate: {
@@ -208,20 +226,22 @@ async function main() {
               workDate: day,
             },
           },
-          update: { checkIn, checkOut, status },
+          update: { checkIn, checkOut, status, isLate, isEarlyLeave },
           create: {
             employeeId: emp.id,
             workDate: day,
             checkIn,
             checkOut,
             status,
+            isLate,
+            isEarlyLeave,
           },
         });
       }
     }
   }
 
-  console.log("Seed done. Login: admin | manager | staff | password: password123");
+  console.log("Seed done. Login: admin | staff — password: password123 (username 'manager' also exists as staff role)");
 }
 
 main()

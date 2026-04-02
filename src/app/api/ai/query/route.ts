@@ -14,7 +14,7 @@ async function getSystemContext(auth: { role: string; employeeId?: string | null
   // 2. Role-specific data
   let dataContext = "";
 
-  if (auth.role === "admin" || auth.role === "manager") {
+  if (auth.role === "admin") {
     // Org-wide employee summary
     const employees = await prisma.employee.findMany({
       include: { department: true, position: true },
@@ -46,7 +46,32 @@ async function getSystemContext(auth: { role: string; employeeId?: string | null
       include: { department: true, position: true },
     });
     if (emp) {
-      dataContext += `\n\nYOUR EMPLOYEE INFO:\n- Name: ${emp.firstName} ${emp.lastName}\n- Department: ${emp.department?.name || "N/A"}\n- Position: ${emp.position?.name || "N/A"}\n- Annual leave balance: ${emp.annualLeaveBalance} days\n- Base salary: ${emp.baseSalary ? (emp.baseSalary / 1_000_000).toFixed(1) + "M VND/month" : "N/A"}`;
+      dataContext += `\n\nYOUR EMPLOYEE INFO:\n- Employee ID: ${emp.employeeCode}\n- Name: ${emp.firstName} ${emp.lastName}\n- Department: ${emp.department?.name || "N/A"}\n- Position: ${emp.position?.name || "N/A"}\n- Annual leave balance: ${emp.annualLeaveBalance} days\n- Base salary: ${emp.baseSalary ? (emp.baseSalary / 1_000_000).toFixed(1) + "M VND/month" : "N/A"}`;
+    }
+
+    // Attendance violation stats
+    const totalLate = await prisma.attendance.count({
+      where: { employeeId: auth.employeeId, isLate: true },
+    });
+    const totalEarlyLeave = await prisma.attendance.count({
+      where: { employeeId: auth.employeeId, isEarlyLeave: true },
+    });
+    const { startOfWeek, endOfWeek } = await import("date-fns");
+    const now = new Date();
+    const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
+    const weeklyLate = await prisma.attendance.count({
+      where: { employeeId: auth.employeeId, isLate: true, workDate: { gte: weekStart, lte: weekEnd } },
+    });
+    const weeklyEarly = await prisma.attendance.count({
+      where: { employeeId: auth.employeeId, isEarlyLeave: true, workDate: { gte: weekStart, lte: weekEnd } },
+    });
+    const totalViolations = totalLate + totalEarlyLeave;
+    const warningCount = Math.floor(totalViolations / 3);
+
+    dataContext += `\n\nYOUR ATTENDANCE STATS:\n- Total late arrivals: ${totalLate}\n- Total early leaves: ${totalEarlyLeave}\n- This week: ${weeklyLate} late, ${weeklyEarly} early\n- Warning count: ${warningCount} (every 3 violations = 1 warning)`;
+    if (warningCount >= 3) {
+      dataContext += `\n- ⚠️ SEVERE WARNING: ${warningCount} warnings accumulated`;
     }
 
     // Personal leave requests
@@ -59,18 +84,6 @@ async function getSystemContext(auth: { role: string; employeeId?: string | null
       dataContext += `\n\nYOUR RECENT LEAVE REQUESTS:`;
       for (const l of leaves) {
         dataContext += `\n  • ${l.leaveType} | ${l.startDate.toISOString().split("T")[0]} to ${l.endDate.toISOString().split("T")[0]} | Status: ${l.status}`;
-      }
-    }
-
-    // Personal training
-    const myTrainings = await prisma.employeeTraining.findMany({
-      where: { employeeId: auth.employeeId },
-      include: { training: true },
-    });
-    if (myTrainings.length > 0) {
-      dataContext += `\n\nYOUR TRAINING:`;
-      for (const t of myTrainings) {
-        dataContext += `\n  • ${t.training.title} | Status: ${t.status}`;
       }
     }
   }
@@ -89,7 +102,7 @@ export async function POST(req: NextRequest) {
 
   if (!GEMINI_API_KEY) {
     return NextResponse.json({
-      answer: "HR Assistant is not configured. Please add GEMINI_API_KEY to the environment.",
+      answer: "Gani chưa được cấu hình. Vui lòng thêm GEMINI_API_KEY vào biến môi trường.",
       sources: [],
     });
   }
@@ -97,7 +110,7 @@ export async function POST(req: NextRequest) {
   try {
     const { policyContext, dataContext } = await getSystemContext(auth);
 
-    const systemPrompt = `You are an HR Assistant for a staff management system. You answer questions ONLY based on the company's internal HR policy documents and employee data provided below. Do not make up information. If you cannot find the answer in the provided context, say so clearly.
+    const systemPrompt = `You are Gani, a friendly and professional HR AI assistant for a staff management system. You answer questions based on the company's internal HR policy documents and employee data provided below. Answer in Vietnamese by default. Do not make up information. If you cannot find the answer in the provided context, say so clearly.
 
 Your user's role is: ${auth.role}
 
@@ -108,12 +121,13 @@ ${policyContext}
 ${dataContext}
 
 RULES:
-1. Answer concisely and professionally.
+1. Answer concisely and professionally in Vietnamese.
 2. Reference the specific policy document name when citing rules.
 3. For staff users, only share their personal information.
-4. For admin/manager users, you can share organization-wide data.
+4. For admin users, you can share organization-wide data.
 5. Use bullet points for clarity when listing multiple items.
-6. If asked about something not covered in the policies, say "This is not covered in the current company policies. Please consult HR directly."`;
+6. When asked about late arrivals or early leaves, use the ATTENDANCE STATS data.
+7. If asked about something not covered in the policies, say "Thông tin này chưa có trong chính sách công ty. Vui lòng liên hệ HR trực tiếp."`;
 
     const requestBody = JSON.stringify({
       contents: [

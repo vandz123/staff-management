@@ -51,13 +51,13 @@ model PasswordResetRequest {
 
 enum UserRole {
   admin
-  manager
   staff
 }
 
 // Employee records (never deleted - use status = inactive)
 model Employee {
   id            String    @id @default(cuid())
+  employeeCode  String    @unique @map("employee_code") // e.g. NV001
   firstName     String    @map("first_name")
   lastName      String    @map("last_name")
   email         String    @unique
@@ -111,6 +111,8 @@ model OvertimeRequest {
   employeeId  String   @map("employee_id")
   workDate    DateTime @map("work_date") @db.Date
   hours       Float    @map("hours")
+  startTime   String?  @map("start_time")  // e.g. "12:00"
+  endTime     String?  @map("end_time")    // e.g. "20:00"
   reason      String?
   status      String   @default("pending") // pending | approved | rejected
   approvedById String? @map("approved_by")
@@ -206,6 +208,8 @@ model Attendance {
   checkIn    DateTime? @map("check_in")
   checkOut   DateTime? @map("check_out")
   status     String   @default("pending") // pending | present | absent | late
+  isLate     Boolean  @default(false) @map("is_late")
+  isEarlyLeave Boolean @default(false) @map("is_early_leave")
   createdAt  DateTime @default(now()) @map("created_at")
 
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
@@ -234,11 +238,13 @@ model AttendanceEdit {
 }
 
 model Training {
-  id          String    @id @default(cuid())
-  title       String    @map("training_title")
-  description String?
-  deadline    DateTime?
-  createdAt   DateTime  @default(now()) @map("created_at")
+  id                    String    @id @default(cuid())
+  title                 String    @map("training_title")
+  description           String?
+  deadline              DateTime?
+  maxParticipants       Int?      @map("max_participants")
+  isOpenForRegistration Boolean   @default(true) @map("is_open_for_registration")
+  createdAt             DateTime  @default(now()) @map("created_at")
 
   employeeTrainings EmployeeTraining[]
 
@@ -265,13 +271,17 @@ enum TrainingStatus {
 }
 
 model HrDocument {
-  id         String   @id @default(cuid())
-  title      String
-  content    String?  @db.Text
-  category   String?  // e.g. "HR Policies", "Workplace Rules", "Compensation"
-  fileUrl    String   @map("file_url")
-  approvedBy String?  @map("approved_by")
-  createdAt  DateTime @default(now()) @map("created_at")
+  id           String   @id @default(cuid())
+  title        String
+  content      String?  @db.Text
+  category     String?  // e.g. "HR Policies", "Workplace Rules", "Compensation"
+  fileUrl      String   @map("file_url")
+  fileName     String?  @map("file_name")
+  fileSize     Int?     @map("file_size")
+  mimeType     String?  @map("mime_type")
+  isRestricted Boolean  @default(false) @map("is_restricted")
+  approvedBy   String?  @map("approved_by")
+  createdAt    DateTime @default(now()) @map("created_at")
 
   @@map("hr_documents")
 }

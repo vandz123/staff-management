@@ -9,18 +9,18 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
   Users,
-  Calendar,
-  CalendarDays,
   ClipboardCheck,
   Clock,
-  GraduationCap,
-  FileText,
-  MessageCircle,
   LogOut,
   KeyRound,
   ChevronDown,
   ChevronRight,
   Globe,
+  CheckSquare,
+  UserCircle,
+  FileText,
+  Sparkles,
+  GraduationCap,
 } from "lucide-react";
 
 type NavItem = {
@@ -39,25 +39,21 @@ type NavGroup = {
 
 const navItems: (NavItem | NavGroup)[] = [
   { href: "/dashboard", labelKey: "nav.dashboard", icon: LayoutDashboard },
-  { href: "/staff", labelKey: "nav.staff", icon: Users, roles: ["admin", "manager", "staff"] },
+  { href: "/employees", labelKey: "nav.employees", icon: Users, roles: ["admin"] },
+  { href: "/my-profile", labelKey: "nav.myProfile", icon: UserCircle, roles: ["staff"] },
+  { href: "/my-requests", labelKey: "nav.myRequests", icon: ClipboardCheck, roles: ["staff"] },
   { href: "/password-requests", labelKey: "nav.passwordRequests", icon: KeyRound, roles: ["admin"] },
-  { href: "/employees", labelKey: "nav.employees", icon: Users, roles: ["admin", "manager"] },
-  { href: "/schedules", labelKey: "nav.shiftSchedule", icon: Calendar, roles: ["admin", "manager"] },
   {
     labelKey: "nav.timekeeping",
     icon: Clock,
     items: [
       { href: "/attendance", labelKey: "nav.attendance", icon: ClipboardCheck },
-      { href: "/work-hours", labelKey: "nav.workHours", icon: Clock },
-      { href: "/leave", labelKey: "nav.leave", icon: CalendarDays },
-      { href: "/overtime", labelKey: "nav.overtime", icon: Clock },
-      { href: "/leave-approvals", labelKey: "nav.leaveApprovals", icon: ClipboardCheck, roles: ["admin", "manager"] },
-      { href: "/overtime-approvals", labelKey: "nav.overtimeApprovals", icon: Clock, roles: ["admin", "manager"] },
+      { href: "/approvals", labelKey: "nav.approvals", icon: CheckSquare, roles: ["admin"] },
     ],
   },
   { href: "/trainings", labelKey: "nav.training", icon: GraduationCap },
   { href: "/policies", labelKey: "nav.policies", icon: FileText },
-  { href: "/ai-assistant", labelKey: "nav.hrAssistant", icon: MessageCircle },
+  { href: "/gani", labelKey: "nav.gani", icon: Sparkles },
 ];
 
 function isNavGroup(item: NavItem | NavGroup): item is NavGroup {

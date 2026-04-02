@@ -6,6 +6,8 @@ export const translations: Record<Locale, Record<string, string>> = {
     "app.title": "Staff Management",
     "nav.dashboard": "Dashboard",
     "nav.staff": "Staff",
+    "nav.myProfile": "My Profile",
+    "nav.myRequests": "My Requests",
     "nav.passwordRequests": "Password Requests",
     "nav.employees": "Employees",
     "nav.shiftSchedule": "Shift Schedule",
@@ -16,9 +18,11 @@ export const translations: Record<Locale, Record<string, string>> = {
     "nav.overtime": "Overtime",
     "nav.leaveApprovals": "Leave Approvals",
     "nav.overtimeApprovals": "Overtime Approvals",
+    "nav.approvals": "Approvals",
     "nav.training": "Training",
     "nav.policies": "Policy Docs",
     "nav.hrAssistant": "HR Assistant",
+    "nav.gani": "Gani AI",
     "nav.logout": "Logout",
 
     // Dashboard - Admin
@@ -55,6 +59,7 @@ export const translations: Record<Locale, Record<string, string>> = {
     "dash.attendanceBreakdown": "Attendance Breakdown",
     "dash.onTime": "On Time",
     "dash.hours": "hours",
+    "dash.overtime": "Overtime",
 
     // Dashboard - Manager
     "dash.manager.title": "Manager Dashboard",
@@ -96,6 +101,7 @@ export const translations: Record<Locale, Record<string, string>> = {
     "dash.hrAssistantDesc": "Ask questions about leave days, overtime policy, or other HR matters.",
     "dash.openHRAssistant": "Open HR Assistant",
     "dash.leaveBalance": "Leave Balance",
+    "dash.days": "days",
     "dash.daysRemaining": "Annual leave remaining",
     "dash.submitLeave": "Submit leave request →",
     "dash.noSalaryData": "No salary data",
@@ -187,6 +193,8 @@ export const translations: Record<Locale, Record<string, string>> = {
     "app.title": "Quản Lý Nhân Sự",
     "nav.dashboard": "Bảng Điều Khiển",
     "nav.staff": "Nhân Viên",
+    "nav.myProfile": "Hồ Sơ Của Tôi",
+    "nav.myRequests": "Đơn Từ Của Tôi",
     "nav.passwordRequests": "Yêu Cầu Mật Khẩu",
     "nav.employees": "Quản Lý NV",
     "nav.shiftSchedule": "Lịch Ca Làm",
@@ -197,9 +205,11 @@ export const translations: Record<Locale, Record<string, string>> = {
     "nav.overtime": "Tăng Ca",
     "nav.leaveApprovals": "Duyệt Nghỉ Phép",
     "nav.overtimeApprovals": "Duyệt Tăng Ca",
+    "nav.approvals": "Phê Duyệt Đơn",
     "nav.training": "Đào Tạo",
     "nav.policies": "Tài Liệu Chính Sách",
     "nav.hrAssistant": "Trợ Lý HR",
+    "nav.gani": "Gani AI",
     "nav.logout": "Đăng Xuất",
 
     // Dashboard - Admin
@@ -236,6 +246,7 @@ export const translations: Record<Locale, Record<string, string>> = {
     "dash.attendanceBreakdown": "Phân Bổ Điểm Danh",
     "dash.onTime": "Đúng Giờ",
     "dash.hours": "giờ",
+    "dash.overtime": "Tăng Ca",
 
     // Dashboard - Manager
     "dash.manager.title": "Bảng Điều Khiển Quản Lý",
@@ -277,6 +288,7 @@ export const translations: Record<Locale, Record<string, string>> = {
     "dash.hrAssistantDesc": "Hỏi về ngày nghỉ phép, chính sách tăng ca, hoặc các vấn đề HR khác.",
     "dash.openHRAssistant": "Mở Trợ Lý HR",
     "dash.leaveBalance": "Số Ngày Nghỉ Còn Lại",
+    "dash.days": "ngày",
     "dash.daysRemaining": "Ngày phép năm còn lại",
     "dash.submitLeave": "Gửi yêu cầu nghỉ phép →",
     "dash.noSalaryData": "Chưa có dữ liệu lương",

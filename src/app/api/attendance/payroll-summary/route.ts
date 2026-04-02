@@ -38,24 +38,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  if (
-    (auth.role === "manager" || auth.role === "admin") &&
-    targetEmployeeId !== auth.employeeId
-  ) {
-    const emp = await prisma.employee.findUnique({
-      where: { id: targetEmployeeId },
-      select: { departmentId: true },
-    });
-    if (auth.role === "manager" && auth.employeeId) {
-      const manager = await prisma.employee.findUnique({
-        where: { id: auth.employeeId },
-        select: { departmentId: true },
-      });
-      if (manager?.departmentId !== emp?.departmentId) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-      }
-    }
-  }
+
 
   const employee = await prisma.employee.findUnique({
     where: { id: targetEmployeeId },

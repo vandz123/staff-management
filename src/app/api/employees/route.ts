@@ -12,15 +12,7 @@ async function handleGet(req: NextRequest, auth: { role: string; employeeId?: st
     status === "all" ? {} : { status: status as "active" | "inactive" };
 
   // Restrict visibility based on role
-  if (auth.role === "manager" && auth.employeeId) {
-    const manager = await prisma.employee.findUnique({
-      where: { id: auth.employeeId },
-      select: { departmentId: true },
-    });
-    if (manager?.departmentId) {
-      where = { ...where, departmentId: manager.departmentId };
-    }
-  } else if (auth.role === "staff" && auth.employeeId) {
+  if (auth.role === "staff" && auth.employeeId) {
     // Staff only ever sees their own record
     where = { ...where, id: auth.employeeId };
   }
@@ -97,8 +89,21 @@ async function handlePost(
     );
   }
 
+  // Auto-generate employeeCode (NV001, NV002, ...)
+  const lastEmployee = await prisma.employee.findFirst({
+    orderBy: { employeeCode: "desc" },
+    select: { employeeCode: true },
+  });
+  let nextNum = 1;
+  if (lastEmployee?.employeeCode) {
+    const match = lastEmployee.employeeCode.match(/^NV(\d+)$/);
+    if (match) nextNum = parseInt(match[1], 10) + 1;
+  }
+  const employeeCode = `NV${String(nextNum).padStart(3, "0")}`;
+
   const employee = await prisma.employee.create({
     data: {
+      employeeCode,
       firstName,
       lastName,
       email,
@@ -115,19 +120,18 @@ async function handlePost(
   });
 
   const shouldCreateLogin =
-    createLogin !== false && (role === "manager" || role === "staff");
+    createLogin !== false && role === "staff";
 
   let createdLogin:
     | {
         username: string;
         tempPassword: string;
-        role: "admin" | "manager" | "staff";
+        role: "admin" | "staff";
       }
     | null = null;
 
   if (shouldCreateLogin) {
-    const userRole: "manager" | "staff" =
-      role === "manager" ? "manager" : "staff";
+    const userRole: "staff" = "staff";
 
     // Generate a unique username if not provided
     let baseUsername =

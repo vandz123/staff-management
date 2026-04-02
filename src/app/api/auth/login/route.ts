@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
     const token = await createToken({
       userId: user.id,
       username: user.username,
-      role: user.role as "admin" | "manager" | "staff",
+      role: user.role as "admin" | "staff",
       employeeId: user.employeeId ?? undefined,
       mustChangePassword: user.mustChangePassword ?? undefined,
     });

@@ -19,19 +19,17 @@ export async function GET(req: NextRequest) {
     where.employeeId = employeeId;
   }
 
-  if (auth.role === "manager" && auth.employeeId && !employeeId && !myOnly) {
-    const emp = await prisma.employee.findUnique({
-      where: { id: auth.employeeId },
-      select: { departmentId: true },
-    });
-    if (emp?.departmentId) {
-      where.employee = { departmentId: emp.departmentId };
-    }
-  }
+
 
   const requests = await prisma.overtimeRequest.findMany({
     where,
-    include: { employee: true },
+    include: {
+      employee: {
+        include: {
+          position: { select: { name: true } },
+        },
+      },
+    },
     orderBy: { workDate: "desc" },
   });
   return NextResponse.json(requests);
@@ -44,17 +42,40 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Employee account required" }, { status: 400 });
   }
 
-  const { workDate, hours, reason } = await req.json();
-  if (!workDate || hours == null) {
-    return NextResponse.json(
-      { error: "workDate and hours required" },
-      { status: 400 }
-    );
+  const body = await req.json();
+  const { workDate, startTime, endTime, reason, hours: legacyHours } = body;
+
+  if (!workDate) {
+    return NextResponse.json({ error: "workDate is required" }, { status: 400 });
   }
 
-  const h = parseFloat(hours);
-  if (isNaN(h) || h <= 0 || h > 24) {
-    return NextResponse.json({ error: "Invalid hours" }, { status: 400 });
+  let hours: number;
+
+  if (startTime && endTime) {
+    // Calculate hours from startTime and endTime
+    const [startH, startM] = startTime.split(":").map(Number);
+    const [endH, endM] = endTime.split(":").map(Number);
+    let startMinutes = startH * 60 + startM;
+    let endMinutes = endH * 60 + endM;
+    // Handle overnight shifts (e.g., 22:00 - 06:00)
+    if (endMinutes <= startMinutes) {
+      endMinutes += 24 * 60;
+    }
+    hours = (endMinutes - startMinutes) / 60;
+    if (hours <= 0 || hours > 24) {
+      return NextResponse.json({ error: "Invalid time range" }, { status: 400 });
+    }
+  } else if (legacyHours != null) {
+    // Legacy support: accept hours directly
+    hours = parseFloat(legacyHours);
+    if (isNaN(hours) || hours <= 0 || hours > 24) {
+      return NextResponse.json({ error: "Invalid hours" }, { status: 400 });
+    }
+  } else {
+    return NextResponse.json(
+      { error: "startTime and endTime, or hours required" },
+      { status: 400 }
+    );
   }
 
   const date = new Date(workDate);
@@ -64,11 +85,19 @@ export async function POST(req: NextRequest) {
     data: {
       employeeId: auth.employeeId,
       workDate: date,
-      hours: h,
+      hours: Math.round(hours * 10) / 10,
+      startTime: startTime || null,
+      endTime: endTime || null,
       reason: reason || null,
       status: "pending",
     },
-    include: { employee: true },
+    include: {
+      employee: {
+        include: {
+          position: { select: { name: true } },
+        },
+      },
+    },
   });
   return NextResponse.json(request);
 }

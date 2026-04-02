@@ -22,7 +22,7 @@ type EmployeeWithUser = {
   department?: { name: string } | null;
   position?: { name: string } | null;
   user?: {
-    role: "admin" | "manager" | "staff";
+    role: "admin" | "staff";
     username: string;
     status: string;
   } | null;
@@ -94,10 +94,6 @@ export default function StaffPage() {
 
   if (user.role === "admin") {
     return <AdminStaffView />;
-  }
-
-  if (user.role === "manager") {
-    return <ManagerStaffView />;
   }
 
   return <SelfStaffView />;
@@ -172,7 +168,6 @@ function AdminStaffView() {
           >
             <option value="all">{t("staff.allRoles")}</option>
             <option value="admin">Admin</option>
-            <option value="manager">Manager</option>
             <option value="staff">Staff</option>
           </select>
           <select
@@ -294,97 +289,6 @@ function AdminStaffView() {
   );
 }
 
-function ManagerStaffView() {
-  const { t } = useLanguage();
-  const [employees, setEmployees] = useState<EmployeeWithUser[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    setLoading(true);
-    api
-      .get<EmployeeWithUser[]>("/employees", { params: { status: "active", includeAttendance: "true" } })
-      .then((r) => setEmployees(r.data))
-      .finally(() => setLoading(false));
-  }, []);
-
-  return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-800">{t("staff.myTeam")}</h1>
-        <p className="text-sm text-slate-500">
-          {t("staff.myTeamDesc")}
-        </p>
-      </div>
-
-      <div className="mb-4 grid gap-4 sm:grid-cols-2">
-        <StatChip icon={Users} label={t("staff.teamSize")} value={employees.length} />
-        <StatChip
-          icon={UserCircle2}
-          label={t("staff.withLogin")}
-          value={employees.filter((e) => !!e.user).length}
-        />
-      </div>
-
-      <div className="overflow-hidden rounded-xl border border-slate-200/60 bg-white/90 shadow-sm backdrop-blur-sm">
-        <table className="w-full">
-          <thead className="bg-slate-50/80">
-            <tr>
-              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("dash.employee")}</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("emp.position")}</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("emp.department")}</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("staff.todayAttendance")}</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("staff.login")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
-                  {t("staff.loadingTeam")}
-                </td>
-              </tr>
-            ) : employees.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-slate-500">
-                  {t("staff.noEmployees")}
-                </td>
-              </tr>
-            ) : (
-              employees.map((e) => (
-                <tr key={e.id} className="border-t border-slate-100 hover:bg-slate-50/50 transition-colors">
-                  <td className="px-4 py-3">
-                    <div className="font-medium text-slate-900">
-                      {e.firstName} {e.lastName}
-                    </div>
-                    <div className="text-xs text-slate-500">{e.email}</div>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-slate-700">
-                    {e.position?.name ?? "—"}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-slate-700">
-                    {e.department?.name ?? "—"}
-                  </td>
-                  <td className="px-4 py-3">
-                    <AttendanceBadge attendance={e.todayAttendance} t={t} />
-                  </td>
-                  <td className="px-4 py-3 text-sm">
-                    {e.user ? (
-                      <span className="font-mono text-xs text-slate-700">
-                        {e.user.username}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-slate-400">{t("staff.noAccount")}</span>
-                    )}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
 
 function SelfStaffView() {
   const { user } = useAuth();

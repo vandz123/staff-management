@@ -2,13 +2,35 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuth } from "@/lib/middleware";
 import { prisma } from "@/lib/prisma";
 
+// Fixed schedule constants
+const SHIFT_START_HOUR = 8;
+const SHIFT_START_MIN = 0;
+const LATE_THRESHOLD_MIN = 10; // 8:10
+const SHIFT_END_HOUR = 17;
+const SHIFT_END_MIN = 30;
+const EARLY_LEAVE_THRESHOLD_MIN = 40; // Before 17:40
+
 /**
  * Parse a "YYYY-MM-DD" string into a UTC-midnight Date.
- * PostgreSQL DATE columns extract the UTC date portion,
- * so we must always send UTC midnight to avoid off-by-one day shifts.
  */
 function toUTCDate(dateStr: string): Date {
   return new Date(dateStr + "T00:00:00.000Z");
+}
+
+/**
+ * Check if the employee has an approved late_arrival or early_leave request for the given date.
+ */
+async function hasApprovedExemption(employeeId: string, workDate: Date, type: "late_arrival" | "early_leave"): Promise<boolean> {
+  const request = await prisma.leaveRequest.findFirst({
+    where: {
+      employeeId,
+      leaveType: type,
+      status: "approved",
+      startDate: { lte: workDate },
+      endDate: { gte: workDate },
+    },
+  });
+  return !!request;
 }
 
 export async function GET(req: NextRequest) {
@@ -42,7 +64,18 @@ export async function GET(req: NextRequest) {
 
   const attendance = await prisma.attendance.findMany({
     where,
-    include: { employee: true },
+    include: {
+      employee: {
+        select: {
+          id: true,
+          employeeCode: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+        },
+      },
+    },
     orderBy: [{ workDate: "desc" }, { employeeId: "asc" }],
   });
   return NextResponse.json(attendance);
@@ -72,6 +105,36 @@ export async function POST(req: NextRequest) {
 
   const date = toUTCDate(workDate);
 
+  // Determine isLate based on check-in time
+  let isLate = false;
+  if (checkIn) {
+    const checkInDate = new Date(checkIn);
+    const checkInHour = checkInDate.getHours();
+    const checkInMin = checkInDate.getMinutes();
+    const totalMinutes = checkInHour * 60 + checkInMin;
+    const lateThreshold = SHIFT_START_HOUR * 60 + SHIFT_START_MIN + LATE_THRESHOLD_MIN; // 8:10 = 490
+    if (totalMinutes > lateThreshold) {
+      // Check if there's an approved late_arrival exemption
+      const exempted = await hasApprovedExemption(targetEmployeeId, date, "late_arrival");
+      isLate = !exempted;
+    }
+  }
+
+  // Determine isEarlyLeave based on check-out time
+  let isEarlyLeave = false;
+  if (checkOut) {
+    const checkOutDate = new Date(checkOut);
+    const checkOutHour = checkOutDate.getHours();
+    const checkOutMin = checkOutDate.getMinutes();
+    const totalMinutes = checkOutHour * 60 + checkOutMin;
+    const earlyThreshold = SHIFT_END_HOUR * 60 + EARLY_LEAVE_THRESHOLD_MIN; // 17:40 = 1100
+    if (totalMinutes < earlyThreshold) {
+      // Check if there's an approved early_leave exemption
+      const exempted = await hasApprovedExemption(targetEmployeeId, date, "early_leave");
+      isEarlyLeave = !exempted;
+    }
+  }
+
   const att = await prisma.attendance.upsert({
     where: {
       employeeId_workDate: { employeeId: targetEmployeeId, workDate: date },
@@ -81,12 +144,14 @@ export async function POST(req: NextRequest) {
       workDate: date,
       checkIn: checkIn ? new Date(checkIn) : null,
       checkOut: checkOut ? new Date(checkOut) : null,
-      status: checkIn ? "present" : "pending",
+      status: checkIn ? (isLate ? "late" : "present") : "pending",
+      isLate,
+      isEarlyLeave,
     },
     update: {
-      checkIn: checkIn ? new Date(checkIn) : undefined,
-      checkOut: checkOut ? new Date(checkOut) : undefined,
-      status: checkIn ? "present" : undefined,
+      ...(checkIn ? { checkIn: new Date(checkIn), isLate } : {}),
+      ...(checkOut ? { checkOut: new Date(checkOut), isEarlyLeave } : {}),
+      ...(checkIn ? { status: isLate ? "late" : "present" } : {}),
     },
     include: { employee: true },
   });

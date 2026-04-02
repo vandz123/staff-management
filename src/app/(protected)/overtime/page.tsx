@@ -9,9 +9,11 @@ type OvertimeRequest = {
   id: string;
   workDate: string;
   hours: number;
+  startTime: string | null;
+  endTime: string | null;
   reason: string | null;
   status: string;
-  employee: { firstName: string; lastName: string };
+  employee: { firstName: string; lastName: string; email: string; phone?: string | null; position?: { name: string } | null };
 };
 
 export default function OvertimePage() {
@@ -19,7 +21,7 @@ export default function OvertimePage() {
   const [requests, setRequests] = useState<OvertimeRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ workDate: "", hours: "", reason: "" });
+  const [form, setForm] = useState({ workDate: "", startTime: "", endTime: "", reason: "" });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -38,14 +40,19 @@ export default function OvertimePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    if (!form.startTime || !form.endTime) {
+      setError("Vui lòng nhập giờ bắt đầu và kết thúc");
+      return;
+    }
     setSubmitting(true);
     try {
       await api.post("/overtime", {
         workDate: form.workDate,
-        hours: parseFloat(form.hours),
+        startTime: form.startTime,
+        endTime: form.endTime,
         reason: form.reason || undefined,
       });
-      setForm({ workDate: "", hours: "", reason: "" });
+      setForm({ workDate: "", startTime: "", endTime: "", reason: "" });
       setShowForm(false);
       fetchRequests();
     } catch (err: unknown) {
@@ -59,13 +66,13 @@ export default function OvertimePage() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-800">Overtime</h1>
+        <h1 className="text-2xl font-bold text-slate-800">Tăng ca</h1>
         {user?.role === "staff" && (
           <button
             onClick={() => setShowForm(!showForm)}
             className="rounded-lg bg-primary-600 px-4 py-2 font-medium text-white hover:bg-primary-700"
           >
-            {showForm ? "Cancel" : "Submit Overtime"}
+            {showForm ? "Hủy" : "Gửi đơn tăng ca"}
           </button>
         )}
       </div>
@@ -75,10 +82,10 @@ export default function OvertimePage() {
           onSubmit={handleSubmit}
           className="mb-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
         >
-          <h2 className="mb-4 font-semibold text-slate-800">New Overtime Request</h2>
+          <h2 className="mb-4 font-semibold text-slate-800">Đơn tăng ca mới</h2>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Date</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Ngày</label>
               <input
                 type="date"
                 value={form.workDate}
@@ -88,20 +95,27 @@ export default function OvertimePage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700">Hours</label>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Giờ bắt đầu</label>
               <input
-                type="number"
-                step="0.5"
-                min="0.5"
-                max="24"
-                value={form.hours}
-                onChange={(e) => setForm((f) => ({ ...f, hours: e.target.value }))}
+                type="time"
+                value={form.startTime}
+                onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))}
                 className="w-full rounded-lg border border-slate-300 px-4 py-2"
                 required
               />
             </div>
-            <div className="sm:col-span-2">
-              <label className="mb-1 block text-sm font-medium text-slate-700">Reason (optional)</label>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Giờ kết thúc</label>
+              <input
+                type="time"
+                value={form.endTime}
+                onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))}
+                className="w-full rounded-lg border border-slate-300 px-4 py-2"
+                required
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Lý do (không bắt buộc)</label>
               <input
                 type="text"
                 value={form.reason}
@@ -116,7 +130,7 @@ export default function OvertimePage() {
             disabled={submitting}
             className="mt-4 rounded-lg bg-primary-600 px-4 py-2 font-medium text-white hover:bg-primary-700 disabled:opacity-50"
           >
-            {submitting ? "Submitting..." : "Submit Request"}
+            {submitting ? "Đang gửi..." : "Gửi đơn"}
           </button>
         </form>
       )}
@@ -126,30 +140,45 @@ export default function OvertimePage() {
           <thead className="bg-slate-50">
             <tr>
               {user?.role !== "staff" && (
-                <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Employee</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Nhân viên</th>
               )}
-              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Date</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Hours</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Status</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Ngày</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Thời gian tăng ca</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Số giờ</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Lý do</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Trạng thái</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
-                  Loading...
+                <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                  Đang tải...
+                </td>
+              </tr>
+            ) : requests.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                  Không có đơn tăng ca
                 </td>
               </tr>
             ) : (
               requests.map((r) => (
                 <tr key={r.id} className="border-t border-slate-100">
                   {user?.role !== "staff" && (
-                    <td className="px-4 py-3 font-medium">
-                      {r.employee.firstName} {r.employee.lastName}
+                    <td className="px-4 py-3">
+                      <div className="font-medium">{r.employee.firstName} {r.employee.lastName}</div>
+                      <div className="text-xs text-slate-500">{r.employee.email}</div>
+                      {r.employee.phone && <div className="text-xs text-slate-500">{r.employee.phone}</div>}
+                      {r.employee.position && <div className="text-xs text-slate-400">{r.employee.position.name}</div>}
                     </td>
                   )}
                   <td className="px-4 py-3">{format(new Date(r.workDate), "d MMM yyyy")}</td>
+                  <td className="px-4 py-3 font-medium">
+                    {r.startTime && r.endTime ? `${r.startTime} – ${r.endTime}` : "—"}
+                  </td>
                   <td className="px-4 py-3">{r.hours}h</td>
+                  <td className="px-4 py-3 text-slate-600">{r.reason || "—"}</td>
                   <td className="px-4 py-3">
                     <span
                       className={`rounded px-2 py-0.5 text-xs ${
@@ -160,7 +189,7 @@ export default function OvertimePage() {
                             : "bg-amber-100 text-amber-700"
                       }`}
                     >
-                      {r.status}
+                      {r.status === "approved" ? "Đã duyệt" : r.status === "rejected" ? "Từ chối" : "Chờ duyệt"}
                     </span>
                   </td>
                 </tr>

@@ -21,19 +21,11 @@ export async function GET(req: NextRequest) {
   }
   if (status) where.status = status;
 
-  if (auth.role === "manager" && auth.employeeId && !employeeId && !myOnly) {
-    const emp = await prisma.employee.findUnique({
-      where: { id: auth.employeeId },
-      select: { departmentId: true },
-    });
-    if (emp?.departmentId) {
-      where.employee = { departmentId: emp.departmentId };
-    }
-  }
+
 
   const requests = await prisma.leaveRequest.findMany({
     where,
-    include: { employee: { include: { department: true } } },
+    include: { employee: { include: { department: true, position: true } } },
     orderBy: { createdAt: "desc" },
   });
   return NextResponse.json(requests);
@@ -54,7 +46,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const validTypes = ["annual", "sick", "unpaid", "emergency"];
+  const validTypes = ["annual", "sick", "unpaid", "emergency", "late_arrival", "early_leave"];
   if (!validTypes.includes(leaveType)) {
     return NextResponse.json({ error: "Invalid leave type" }, { status: 400 });
   }

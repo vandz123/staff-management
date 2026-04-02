@@ -12,7 +12,7 @@ export async function GET(
   const { id } = await params;
   const employee = await prisma.employee.findUnique({
     where: { id },
-    include: { department: true, position: true },
+    include: { department: true, position: true, user: { select: { username: true, role: true, status: true } } },
   });
   if (!employee) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json(employee);

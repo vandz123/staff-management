@@ -6,7 +6,7 @@ import api from "@/lib/api";
 type User = {
   id: string;
   username: string;
-  role: "admin" | "manager" | "staff";
+  role: "admin" | "staff";
   employeeId?: string;
   mustChangePassword?: boolean;
   employee?: {

@@ -15,12 +15,10 @@ import {
   ClipboardCheck,
   Clock,
   AlertTriangle,
-  TrendingUp,
-  GraduationCap,
   KeyRound,
   FileEdit,
   Calendar,
-  MessageCircle,
+  CalendarDays,
 } from "lucide-react";
 
 type DashboardData = {
@@ -44,12 +42,6 @@ type DashboardData = {
     assigned: number;
     status?: string;
   }>;
-  payrollOverview?: {
-    totalPayroll: number;
-    totalOvertimeHours: number;
-    highestOTDept: string;
-  };
-  trainingStatus?: { completed: number; pending: number; overdue: number };
   pendingRequests?: {
     passwordReset: number;
     attendanceCorrection: number;
@@ -66,22 +58,6 @@ type DashboardData = {
     late: number;
     absent: number;
   };
-  // Manager
-  teamOverview?: {
-    teamSize: number;
-    presentToday: number;
-    absent: number;
-    late: number;
-  };
-  teamShiftSchedule?: Array<{ employee: string; shift: string; time: string }>;
-  attendanceAlerts?: Array<{ issue: string; employee: string }>;
-  shiftCoverageWarning?: Array<{ name: string; required: number; assigned: number }>;
-  trainingProgress?: Array<{ employee: string; training: string; status: string }>;
-  pendingApprovals?: {
-    leave: Array<{ id: string; employee: string; type: string; startDate: string; endDate: string }>;
-    overtime: Array<{ id: string; employee: string; hours: number; date: string }>;
-    attendanceCorrection: Array<{ id: string; employee: string }>;
-  };
   // Staff
   todaysSchedule?: { date: string; shift: string; time: string } | null;
   attendanceStatus?: {
@@ -89,24 +65,6 @@ type DashboardData = {
     checkOut: string | null;
     status: string;
   };
-  workHoursSummary?: {
-    totalHours: number;
-    overtime: number;
-    payPeriodStart: string;
-    payPeriodEnd: string;
-  };
-  payrollEstimate?: {
-    baseSalary: number;
-    overtimePay: number;
-    deductions: number;
-    estimatedTotal: number;
-  };
-  trainingTasks?: Array<{
-    id: string;
-    training: string;
-    deadline: string | null;
-    status: string;
-  }>;
   leaveBalance?: number;
   recentLeaveRequests?: Array<{ id: string; leaveType: string; startDate: string; endDate: string; status: string }>;
 };
@@ -188,7 +146,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (!data.role || !["admin", "manager", "staff"].includes(data.role)) {
+  if (!data.role || !["admin", "staff"].includes(data.role)) {
     return (
       <div className="rounded-lg border border-warm-200 bg-warm-50 p-6 text-warm-800">
         <p className="font-medium">{t("dash.roleError")}</p>
@@ -286,39 +244,6 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        <section className="mb-8">
-          <h2 className="mb-3 text-lg font-semibold text-slate-700">{t("dash.payrollOverview")}</h2>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="rounded-xl border border-slate-200/60 bg-white/90 p-4 shadow-sm backdrop-blur-sm">
-              <p className="text-sm text-slate-500">{t("dash.totalPayroll")}</p>
-              <p className="text-xl font-bold text-slate-800">
-                {((data.payrollOverview?.totalPayroll ?? 0) / 1_000_000).toFixed(1)}M VND
-              </p>
-            </div>
-            <div className="rounded-xl border border-slate-200/60 bg-white/90 p-4 shadow-sm backdrop-blur-sm">
-              <p className="text-sm text-slate-500">{t("dash.totalOvertime")}</p>
-              <p className="text-xl font-bold text-slate-800">
-                {data.payrollOverview?.totalOvertimeHours ?? 0} {t("dash.hours")}
-              </p>
-            </div>
-            <div className="rounded-xl border border-slate-200/60 bg-white/90 p-4 shadow-sm backdrop-blur-sm">
-              <p className="text-sm text-slate-500">{t("dash.highestOTDept")}</p>
-              <p className="text-xl font-bold text-slate-800">
-                {data.payrollOverview?.highestOTDept ?? "—"}
-              </p>
-            </div>
-          </div>
-        </section>
-
-        <section className="mb-8">
-          <h2 className="mb-3 text-lg font-semibold text-slate-700">{t("dash.trainingStatus")}</h2>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <StatCard title={t("dash.completed")} value={data.trainingStatus?.completed ?? 0} icon={GraduationCap} color="bg-fresh-500" />
-            <StatCard title={t("dash.pending")} value={data.trainingStatus?.pending ?? 0} icon={Clock} color="bg-warm-500" />
-            <StatCard title={t("dash.overdue")} value={data.trainingStatus?.overdue ?? 0} icon={AlertTriangle} color="bg-coral-500" />
-          </div>
-        </section>
-
         <section>
           <h2 className="mb-3 text-lg font-semibold text-slate-700">{t("dash.pendingRequests")}</h2>
           <div className="flex flex-wrap gap-4">
@@ -340,7 +265,7 @@ export default function DashboardPage() {
               </div>
             </div>
             <Link
-              href="/leave-approvals"
+              href="/approvals"
               className="flex items-center gap-3 rounded-xl border border-slate-200/60 bg-white/90 p-4 shadow-sm backdrop-blur-sm transition-transform hover:scale-[1.02] hover:border-primary-300"
             >
               <Calendar className="h-8 w-8 text-accent-600" />
@@ -355,183 +280,9 @@ export default function DashboardPage() {
     );
   }
 
-  // ========== MANAGER DASHBOARD ==========
-  if (data.role === "manager") {
-    const to = data.teamOverview ?? { teamSize: 0, presentToday: 0, absent: 0, late: 0 };
-    const pa = data.pendingApprovals ?? { leave: [], overtime: [], attendanceCorrection: [] };
-
-    return (
-      <div>
-        <h1 className="mb-6 text-2xl font-bold text-slate-800">{t("dash.manager.title")}</h1>
-
-        <section className="mb-8">
-          <h2 className="mb-3 text-lg font-semibold text-slate-700">{t("dash.teamOverview")}</h2>
-          <div className="grid gap-4 sm:grid-cols-4">
-            <StatCard title={t("dash.teamSize")} value={to.teamSize} icon={Users} color="bg-primary-500" />
-            <StatCard title={t("dash.presentToday")} value={to.presentToday} icon={UserCheck} color="bg-fresh-500" />
-            <StatCard title={t("dash.absent")} value={to.absent} icon={UserX} color="bg-coral-500" />
-            <StatCard title={t("dash.late")} value={to.late} icon={Clock} color="bg-warm-500" />
-          </div>
-        </section>
-
-        <div className="grid gap-8 lg:grid-cols-2">
-          <section>
-            <h2 className="mb-3 text-lg font-semibold text-slate-700">{t("dash.teamShiftSchedule")}</h2>
-            <div className="overflow-hidden rounded-xl border border-slate-200/60 bg-white/90 shadow-sm backdrop-blur-sm">
-              <table className="w-full">
-                <thead className="bg-slate-50/80">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("dash.employee")}</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("dash.shift")}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {(data.teamShiftSchedule ?? []).map((s, i) => (
-                    <tr key={i}>
-                      <td className="px-4 py-3 font-medium">{s.employee}</td>
-                      <td className="px-4 py-3">{s.shift} ({s.time})</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          <section>
-            <h2 className="mb-3 text-lg font-semibold text-slate-700">{t("dash.attendanceAlerts")}</h2>
-            <div className="rounded-xl border border-slate-200/60 bg-white/90 p-4 shadow-sm backdrop-blur-sm">
-              {(data.attendanceAlerts ?? []).length === 0 ? (
-                <p className="text-slate-500">{t("dash.noAlerts")}</p>
-              ) : (
-                <ul className="space-y-2">
-                  {(data.attendanceAlerts ?? []).map((a, i) => (
-                    <li key={i} className="flex justify-between rounded-lg bg-warm-50 px-3 py-2">
-                      <span className="font-medium text-warm-800">{a.issue}</span>
-                      <span className="text-warm-700">{a.employee}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </section>
-        </div>
-
-        {(data.shiftCoverageWarning ?? []).length > 0 && (
-          <section className="mt-8">
-            <h2 className="mb-3 text-lg font-semibold text-slate-700">{t("dash.shiftCoverageWarning")}</h2>
-            <div className="rounded-xl border border-coral-200 bg-coral-50 p-4">
-              {data.shiftCoverageWarning?.map((s, i) => (
-                <p key={i} className="text-coral-800">
-                  {s.name}: {s.assigned}/{s.required} {t("dash.assigned")} — missing {s.required - s.assigned}
-                </p>
-              ))}
-              <Link href="/schedules" className="mt-2 inline-block text-sm font-medium text-primary-600 hover:underline">
-                {t("dash.assignStaff")}
-              </Link>
-            </div>
-          </section>
-        )}
-
-        <section className="mt-8">
-          <h2 className="mb-3 text-lg font-semibold text-slate-700">{t("dash.trainingProgress")}</h2>
-          <div className="overflow-hidden rounded-xl border border-slate-200/60 bg-white/90 shadow-sm backdrop-blur-sm">
-            <table className="w-full">
-              <thead className="bg-slate-50/80">
-                <tr>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("dash.employee")}</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("dash.training")}</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("dash.status")}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                {(data.trainingProgress ?? []).map((tr, i) => (
-                  <tr key={i}>
-                    <td className="px-4 py-3">{tr.employee}</td>
-                    <td className="px-4 py-3">{tr.training}</td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`rounded px-2 py-0.5 text-xs ${
-                          tr.status === "Completed"
-                            ? "bg-fresh-100 text-fresh-700"
-                            : tr.status === "Overdue"
-                              ? "bg-coral-100 text-coral-700"
-                              : "bg-warm-100 text-warm-700"
-                        }`}
-                      >
-                        {tr.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section className="mt-8">
-          <h2 className="mb-3 text-lg font-semibold text-slate-700">{t("dash.pendingApprovals")}</h2>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="rounded-xl border border-slate-200/60 bg-white/90 p-4 shadow-sm backdrop-blur-sm">
-              <h3 className="mb-2 font-medium text-slate-700">{t("dash.leaveRequests")} ({pa.leave.length})</h3>
-              {pa.leave.length === 0 ? (
-                <p className="text-sm text-slate-500">{t("dash.none")}</p>
-              ) : (
-                <ul className="space-y-2">
-                  {pa.leave.slice(0, 3).map((l) => (
-                    <li key={l.id} className="flex items-center justify-between text-sm">
-                      <span>{l.employee}</span>
-                      <Link
-                        href="/leave-approvals"
-                        className="text-primary-600 hover:underline"
-                      >
-                        {t("dash.approve")}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-            <div className="rounded-xl border border-slate-200/60 bg-white/90 p-4 shadow-sm backdrop-blur-sm">
-              <h3 className="mb-2 font-medium text-slate-700">{t("dash.overtime")} ({pa.overtime.length})</h3>
-              {pa.overtime.length === 0 ? (
-                <p className="text-sm text-slate-500">{t("dash.none")}</p>
-              ) : (
-                <ul className="space-y-2">
-                  {pa.overtime.slice(0, 3).map((o) => (
-                    <li key={o.id} className="flex items-center justify-between text-sm">
-                      <span>{o.employee} — {o.hours}h</span>
-                      <Link href="/overtime-approvals" className="text-primary-600 hover:underline">
-                        {t("dash.approve")}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-            <div className="rounded-xl border border-slate-200/60 bg-white/90 p-4 shadow-sm backdrop-blur-sm">
-              <h3 className="mb-2 font-medium text-slate-700">{t("dash.corrections")} ({pa.attendanceCorrection.length})</h3>
-              {pa.attendanceCorrection.length === 0 ? (
-                <p className="text-sm text-slate-500">{t("dash.none")}</p>
-              ) : (
-                <ul className="space-y-2 text-sm">
-                  {pa.attendanceCorrection.map((c) => (
-                    <li key={c.id}>{c.employee}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-        </section>
-      </div>
-    );
-  }
-
   // ========== STAFF DASHBOARD ==========
   const schedule = data.todaysSchedule;
   const att = data.attendanceStatus;
-  const wh = data.workHoursSummary;
-  const pay = data.payrollEstimate;
-  const tasks = data.trainingTasks ?? [];
 
   return (
     <div>
@@ -577,108 +328,13 @@ export default function DashboardPage() {
         </section>
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <section className="rounded-xl border border-slate-200/60 bg-white/90 p-6 shadow-sm backdrop-blur-sm">
-          <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-700">
-            <Clock className="h-5 w-5 text-accent-500" /> {t("dash.workHours")}
-          </h2>
-          {wh ? (
-            <div>
-              <p className="text-2xl font-bold text-slate-800">{wh.totalHours} {t("dash.hours")}</p>
-              <p className="text-slate-600">{t("dash.overtime")}: {wh.overtime} {t("dash.hours")}</p>
-              <p className="mt-1 text-xs text-slate-500">
-                Pay period: {format(new Date(wh.payPeriodStart), "d MMM")} –{" "}
-                {format(new Date(wh.payPeriodEnd), "d MMM yyyy")}
-              </p>
-            </div>
-          ) : (
-            <p className="text-slate-500">{t("dash.noData")}</p>
-          )}
-        </section>
-
-        <section className="rounded-xl border border-slate-200/60 bg-white/90 p-6 shadow-sm backdrop-blur-sm">
-          <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-700">
-            <TrendingUp className="h-5 w-5 text-warm-500" /> {t("dash.payrollEstimate")}
-          </h2>
-          {pay ? (
-            <div className="space-y-2">
-              <p>
-                <span className="text-slate-500">{t("dash.baseSalary")}:</span>{" "}
-                {(pay.baseSalary / 1_000_000).toFixed(1)}M VND
-              </p>
-              <p>
-                <span className="text-slate-500">{t("dash.overtimePay")}:</span>{" "}
-                {(pay.overtimePay / 1_000).toFixed(0)}K VND
-              </p>
-              {pay.deductions > 0 && (
-                <p className="text-coral-600">{t("dash.deductions")}: {(pay.deductions / 1_000).toFixed(0)}K VND</p>
-              )}
-              <p className="mt-2 text-xl font-bold text-slate-800">
-                {t("dash.estimated")}: {(pay.estimatedTotal / 1_000_000).toFixed(2)}M VND
-              </p>
-            </div>
-          ) : (
-            <p className="text-slate-500">{t("dash.noSalaryData")}</p>
-          )}
-        </section>
-      </div>
-
-      <section className="mt-6 rounded-xl border border-slate-200/60 bg-white/90 p-6 shadow-sm backdrop-blur-sm">
-        <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-700">
-          <GraduationCap className="h-5 w-5 text-primary-500" /> {t("dash.trainingTasks")}
-        </h2>
-        {tasks.length === 0 ? (
-          <p className="text-slate-500">{t("dash.noTraining")}</p>
-        ) : (
-          <ul className="space-y-3">
-            {tasks.map((task) => (
-              <li
-                key={task.id}
-                className="flex items-center justify-between rounded-lg border border-slate-100 p-3"
-              >
-                <div>
-                  <span className="font-medium">{task.training}</span>
-                  {task.deadline && (
-                    <span className="ml-2 text-sm text-slate-500">
-                      Deadline: {format(new Date(task.deadline), "d MMM yyyy")}
-                    </span>
-                  )}
-                </div>
-                <span
-                  className={`rounded px-2 py-0.5 text-xs ${
-                    task.status === "completed" ? "bg-fresh-100 text-fresh-700" : "bg-warm-100 text-warm-700"
-                  }`}
-                >
-                  {task.status === "completed" ? t("dash.completed") : task.deadline && new Date(task.deadline) < new Date() ? t("dash.overdue") : t("dash.pending")}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-        <Link href="/trainings" className="mt-3 inline-block text-sm text-primary-600 hover:underline">
-          {t("dash.viewAllTrainings")}
-        </Link>
-      </section>
-
-      <section className="mt-6 rounded-xl border border-slate-200/60 bg-white/90 p-6 shadow-sm backdrop-blur-sm">
-        <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-700">
-          <MessageCircle className="h-5 w-5 text-accent-500" /> {t("dash.hrAssistant")}
-        </h2>
-        <p className="mb-3 text-slate-600">
-          {t("dash.hrAssistantDesc")}
-        </p>
-        <Link
-          href="/ai-assistant"
-          className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-primary-600 to-accent-600 px-4 py-2 font-medium text-white shadow-md hover:shadow-lg transition-shadow"
-        >
-          <MessageCircle className="h-4 w.4" /> {t("dash.openHRAssistant")}
-        </Link>
-      </section>
-
+      {/* Leave Balance - replaces payroll estimate */}
       {data.leaveBalance != null && (
         <section className="mt-6 rounded-xl border border-slate-200/60 bg-white/90 p-6 shadow-sm backdrop-blur-sm">
-          <h2 className="mb-2 text-lg font-semibold text-slate-700">{t("dash.leaveBalance")}</h2>
-          <p className="text-2xl font-bold text-slate-800">{data.leaveBalance} days</p>
+          <h2 className="mb-2 flex items-center gap-2 text-lg font-semibold text-slate-700">
+            <CalendarDays className="h-5 w-5 text-accent-500" /> {t("dash.leaveBalance")}
+          </h2>
+          <p className="text-3xl font-bold text-slate-800">{data.leaveBalance} {t("dash.days")}</p>
           <p className="text-sm text-slate-500">{t("dash.daysRemaining")}</p>
           <Link href="/leave" className="mt-2 inline-block text-sm text-primary-600 hover:underline">
             {t("dash.submitLeave")}

@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Plus, Pencil, UserX } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Users, UserCircle2, Plus, Pencil, UserX } from "lucide-react";
+import { format } from "date-fns";
 
 type Employee = {
   id: string;
+  employeeCode?: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -17,10 +19,11 @@ type Employee = {
   dateOfBirth?: string | null;
   contractEndDate?: string | null;
   status: string;
+  baseSalary?: number | null;
   department?: { id?: string; name: string } | null;
   position?: { id?: string; name: string } | null;
   user?: {
-    role: "admin" | "manager" | "staff";
+    role: "admin" | "staff";
     username: string;
     status: string;
   } | null;
@@ -44,6 +47,30 @@ function getEmployeeStatus(emp: Employee, t: (k: string) => string): { label: st
   return { label: t("empStatus.working"), color: "bg-fresh-100 text-fresh-700" };
 }
 
+function StatChip({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: number;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-slate-200/60 bg-white/90 p-4 shadow-sm backdrop-blur-sm">
+      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary-50 text-primary-600">
+        <Icon className="h-5 w-5" />
+      </div>
+      <div>
+        <div className="text-xs font-medium uppercase tracking-wide text-slate-500">
+          {label}
+        </div>
+        <div className="text-xl font-bold text-slate-900">{value}</div>
+      </div>
+    </div>
+  );
+}
+
 export default function EmployeesPage() {
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -53,11 +80,14 @@ export default function EmployeesPage() {
   const [editing, setEditing] = useState<Employee | null>(null);
   const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
   const [positions, setPositions] = useState<{ id: string; name: string }[]>([]);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("active");
+  const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   const isAdmin = user?.role === "admin";
 
   useEffect(() => {
     setLoading(true);
-    api.get<Employee[]>("/employees").then((r) => {
+    api.get<Employee[]>("/employees", { params: { status: "all" } }).then((r) => {
       setEmployees(r.data);
       setLoading(false);
     });
@@ -69,6 +99,24 @@ export default function EmployeesPage() {
       api.get<{ id: string; name: string }[]>("/positions").then((r) => setPositions(r.data));
     }
   }, [isAdmin]);
+
+  const allDepartments = useMemo(
+    () => Array.from(new Set(employees.map((e) => e.department?.name).filter((d): d is string => !!d))),
+    [employees]
+  );
+
+  const filtered = useMemo(() => {
+    return employees.filter((e) => {
+      if (statusFilter !== "all" && e.status !== statusFilter) return false;
+      if (departmentFilter !== "all" && e.department?.name !== departmentFilter) return false;
+      if (search) {
+        const term = search.toLowerCase();
+        const haystack = `${e.firstName} ${e.lastName} ${e.email} ${e.user?.username || ""}`.toLowerCase();
+        if (!haystack.includes(term)) return false;
+      }
+      return true;
+    });
+  }, [employees, statusFilter, departmentFilter, search]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -115,45 +163,92 @@ export default function EmployeesPage() {
 
         if (created.login) {
           alert(
-            `Login account created:\n\nUsername: ${created.login.username}\nTemporary password: ${created.login.tempPassword}\nRole: ${created.login.role}\n\nAsk the employee to change this password after first login.`
+            `Tài khoản đã tạo:\n\nTên đăng nhập: ${created.login.username}\nMật khẩu tạm: ${created.login.tempPassword}\nVai trò: ${created.login.role}\n\nYêu cầu nhân viên đổi mật khẩu sau lần đăng nhập đầu.`
           );
         } else if (createLogin) {
-          alert("Could not create login account automatically. Please check the server logs.");
+          alert("Không thể tạo tài khoản tự động. Vui lòng kiểm tra server logs.");
         }
       }
       setShowForm(false);
       setEditing(null);
       form.reset();
-      api.get<Employee[]>("/employees").then((r) => setEmployees(r.data));
+      api.get<Employee[]>("/employees", { params: { status: "all" } }).then((r) => setEmployees(r.data));
     } catch (err) {
       console.error(err);
     }
   };
 
   const markInactive = async (emp: Employee) => {
-    if (!confirm(`Mark ${emp.firstName} ${emp.lastName} as inactive?`)) return;
+    if (!confirm(`Đánh dấu ${emp.firstName} ${emp.lastName} là không hoạt động?`)) return;
     await api.patch(`/employees/${emp.id}`, { status: "inactive" });
-    api.get<Employee[]>("/employees").then((r) => setEmployees(r.data));
+    api.get<Employee[]>("/employees", { params: { status: "all" } }).then((r) => setEmployees(r.data));
   };
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary-500 border-t-transparent" />
+      </div>
+    );
+  }
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-800">{t("emp.title")}</h1>
-        {isAdmin && (
-          <button
-            onClick={() => {
-              setEditing(null);
-              setShowForm(!showForm);
-            }}
-            className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-primary-600 to-accent-600 px-4 py-2 text-white shadow-md hover:shadow-lg transition-shadow"
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">{t("emp.title")}</h1>
+          <p className="text-sm text-slate-500">{t("staff.directoryDesc")}</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 outline-none"
           >
-            <Plus className="h-4 w-4" />
-            {t("emp.addEmployee")}
-          </button>
-        )}
+            <option value="all">{t("staff.allStatuses")}</option>
+            <option value="active">{t("staff.active")}</option>
+            <option value="inactive">{t("staff.inactive")}</option>
+          </select>
+          <select
+            value={departmentFilter}
+            onChange={(e) => setDepartmentFilter(e.target.value)}
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 outline-none"
+          >
+            <option value="all">{t("staff.allDepartments")}</option>
+            {allDepartments.map((d) => (
+              <option key={d} value={d}>{d}</option>
+            ))}
+          </select>
+          <input
+            type="text"
+            placeholder={t("staff.searchPlaceholder")}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 outline-none"
+          />
+          {isAdmin && (
+            <button
+              onClick={() => {
+                setEditing(null);
+                setShowForm(!showForm);
+              }}
+              className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-primary-600 to-accent-600 px-4 py-2 text-white shadow-md hover:shadow-lg transition-shadow"
+            >
+              <Plus className="h-4 w-4" />
+              {t("emp.addEmployee")}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="mb-4 grid gap-4 sm:grid-cols-2">
+        <StatChip icon={Users} label={t("staff.totalEmployees")} value={employees.length} />
+        <StatChip
+          icon={UserCircle2}
+          label={t("staff.active")}
+          value={employees.filter((e) => e.status === "active").length}
+        />
       </div>
 
       {showForm && isAdmin && (
@@ -182,16 +277,6 @@ export default function EmployeesPage() {
               <label className="mb-1 block text-xs text-slate-500">{t("emp.contractEndDate")}</label>
               <input name="contractEndDate" type="date" defaultValue={editing?.contractEndDate?.slice(0, 10) ?? ""} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 focus:ring-1 focus:ring-primary-400 outline-none" />
             </div>
-            {!editing && (
-              <input
-                name="baseSalary"
-                type="number"
-                min="0"
-                step="100000"
-                placeholder={t("emp.baseSalary")}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 focus:ring-1 focus:ring-primary-400 outline-none"
-              />
-            )}
             <select name="departmentId" className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 focus:ring-1 focus:ring-primary-400 outline-none">
               <option value="">{t("emp.selectDepartment")}</option>
               {departments.map((d) => (
@@ -211,7 +296,7 @@ export default function EmployeesPage() {
             {!editing && (
               <select name="role" className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 focus:ring-1 focus:ring-primary-400 outline-none" required>
                 <option value="staff">Staff</option>
-                <option value="manager">Manager</option>
+                <option value="admin">Admin</option>
               </select>
             )}
             {!editing && (
@@ -264,68 +349,86 @@ export default function EmployeesPage() {
         <table className="w-full">
           <thead className="bg-slate-50/80">
             <tr>
-              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("emp.name")}</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("emp.email")}</th>
-              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("emp.phone")}</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Mã NV</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">Tài khoản</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("emp.dateOfBirth")}</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("emp.address")}</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("emp.department")}</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("emp.position")}</th>
-              {isAdmin && <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("emp.employeeStatus")}</th>}
               <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("emp.status")}</th>
               {isAdmin && <th className="px-4 py-3"></th>}
             </tr>
           </thead>
           <tbody>
-            {employees.map((emp) => {
-              const empStatus = getEmployeeStatus(emp, t);
-              return (
-                <tr key={emp.id} className="border-t border-slate-100 hover:bg-slate-50/50 transition-colors">
-                  <td className="px-4 py-3 font-medium">{emp.firstName} {emp.lastName}</td>
-                  <td className="px-4 py-3 text-slate-600">{emp.email}</td>
-                  <td className="px-4 py-3 text-slate-600">{emp.phone ?? "—"}</td>
-                  <td className="px-4 py-3">{emp.department?.name ?? "—"}</td>
-                  <td className="px-4 py-3">{emp.position?.name ?? "—"}</td>
-                  {isAdmin && (
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={isAdmin ? 8 : 7} className="px-4 py-8 text-center text-slate-500">
+                  {t("staff.noMatch")}
+                </td>
+              </tr>
+            ) : (
+              filtered.map((emp) => {
+                const empStatus = getEmployeeStatus(emp, t);
+                return (
+                  <tr key={emp.id} className="border-t border-slate-100 hover:bg-slate-50/50 transition-colors">
+                    <td className="px-4 py-3 text-sm font-mono font-medium text-primary-600">
+                      {emp.employeeCode ?? "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-slate-900">
+                        {emp.firstName} {emp.lastName}
+                      </div>
+                      <div className="text-xs text-slate-500">{emp.email}</div>
+                      {emp.phone && <div className="text-xs text-slate-500">{emp.phone}</div>}
+                      {emp.user && (
+                        <div className="mt-1 text-xs text-slate-400">
+                          Login: <span className="font-mono">{emp.user.username}</span>
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-slate-700">
+                      {emp.dateOfBirth ? format(new Date(emp.dateOfBirth), "dd/MM/yyyy") : "—"}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-slate-700">
+                      {emp.address ?? "—"}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-slate-700">
+                      {emp.department?.name ?? "—"}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-slate-700">
+                      {emp.position?.name ?? "—"}
+                    </td>
                     <td className="px-4 py-3">
                       <span className={cn("rounded-full px-2.5 py-1 text-xs font-medium", empStatus.color)}>
                         {empStatus.label}
                       </span>
                     </td>
-                  )}
-                  <td>
-                    <span
-                      className={cn(
-                        "rounded-full px-2.5 py-1 text-xs font-medium",
-                        emp.status === "active" ? "bg-fresh-100 text-fresh-700" : "bg-slate-100 text-slate-600"
-                      )}
-                    >
-                      {emp.status === "active" ? t("staff.active") : t("staff.inactive")}
-                    </span>
-                  </td>
-                  {isAdmin && (
-                    <td className="px-4 py-3">
-                      <button
-                        onClick={() => {
-                          setEditing(emp);
-                          setShowForm(true);
-                        }}
-                        className="mr-2 text-primary-600 hover:text-primary-700"
-                      >
-                        <Pencil className="inline h-4 w-4" />
-                      </button>
-                      {emp.status === "active" && (
+                    {isAdmin && (
+                      <td className="px-4 py-3">
                         <button
-                          onClick={() => markInactive(emp)}
-                          className="text-warm-600 hover:text-warm-700"
-                          title={t("emp.markInactive")}
+                          onClick={() => {
+                            setEditing(emp);
+                            setShowForm(true);
+                          }}
+                          className="mr-2 text-primary-600 hover:text-primary-700"
                         >
-                          <UserX className="inline h-4 w-4" />
+                          <Pencil className="inline h-4 w-4" />
                         </button>
-                      )}
-                    </td>
-                  )}
-                </tr>
-              );
-            })}
+                        {emp.status === "active" && (
+                          <button
+                            onClick={() => markInactive(emp)}
+                            className="text-warm-600 hover:text-warm-700"
+                            title={t("emp.markInactive")}
+                          >
+                            <UserX className="inline h-4 w-4" />
+                          </button>
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>

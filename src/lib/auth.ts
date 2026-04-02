@@ -8,7 +8,7 @@ const JWT_SECRET = new TextEncoder().encode(
 export type JWTPayload = {
   userId: string;
   username: string;
-  role: "admin" | "manager" | "staff";
+  role: "admin" | "staff";
   employeeId?: string;
   mustChangePassword?: boolean;
 };

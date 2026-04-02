@@ -14,7 +14,15 @@ export async function GET(req: NextRequest) {
     },
     orderBy: { createdAt: "desc" },
   });
-  return NextResponse.json(trainings);
+
+  // Enrich with participant count and spots info
+  const enriched = trainings.map((t) => ({
+    ...t,
+    participantCount: t.employeeTrainings.length,
+    spotsLeft: t.maxParticipants ? t.maxParticipants - t.employeeTrainings.length : null,
+  }));
+
+  return NextResponse.json(enriched);
 }
 
 export async function POST(req: NextRequest) {
@@ -22,7 +30,7 @@ export async function POST(req: NextRequest) {
   if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (auth.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const { title, description, deadline } = await req.json();
+  const { title, description, deadline, maxParticipants } = await req.json();
   if (!title) return NextResponse.json({ error: "title required" }, { status: 400 });
 
   const training = await prisma.training.create({
@@ -30,6 +38,7 @@ export async function POST(req: NextRequest) {
       title,
       description: description || null,
       deadline: deadline ? new Date(deadline) : null,
+      maxParticipants: maxParticipants ? parseInt(maxParticipants) : null,
     },
   });
   return NextResponse.json(training);

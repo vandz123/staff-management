@@ -6,7 +6,9 @@ export async function GET(req: NextRequest) {
   const auth = await getAuth(req);
   if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const docs = await prisma.hrDocument.findMany({ orderBy: { createdAt: "desc" } });
+  // Staff users cannot see restricted documents
+  const where = auth.role === "staff" ? { isRestricted: false } : {};
+  const docs = await prisma.hrDocument.findMany({ where, orderBy: { createdAt: "desc" } });
   return NextResponse.json(docs);
 }
 
@@ -15,7 +17,7 @@ export async function POST(req: NextRequest) {
   if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (auth.role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const { title, content, category, fileUrl } = await req.json();
+  const { title, content, category, fileUrl, isRestricted } = await req.json();
   if (!title) {
     return NextResponse.json({ error: "title required" }, { status: 400 });
   }
@@ -26,6 +28,7 @@ export async function POST(req: NextRequest) {
       content: content || null,
       category: category || null,
       fileUrl: fileUrl || `/policies/${title.toLowerCase().replace(/\s+/g, "-")}`,
+      isRestricted: isRestricted ?? false,
       approvedBy: auth.userId,
     },
   });

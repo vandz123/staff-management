@@ -5,7 +5,7 @@ import api from "@/lib/api";
 import { addDays, format, startOfWeek } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, UserPlus, X, AlertTriangle } from "lucide-react";
+import { Plus, AlertTriangle } from "lucide-react";
 
 type Shift = {
   id: string;
@@ -28,7 +28,6 @@ export default function SchedulesPage() {
   const { user } = useAuth();
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
   const [weekStart, setWeekStart] = useState(() => {
     const d = startOfWeek(new Date(), { weekStartsOn: 1 });
     return format(d, "yyyy-MM-dd");
@@ -42,14 +41,7 @@ export default function SchedulesPage() {
   const [newShiftReqStaff, setNewShiftReqStaff] = useState(5);
   const [savingShift, setSavingShift] = useState(false);
 
-  // Assign modal
-  const [assignCell, setAssignCell] = useState<{ dayKey: string; shiftId: string } | null>(null);
-  const [assignEmployeeId, setAssignEmployeeId] = useState("");
-  const [assigning, setAssigning] = useState(false);
-  const [assignError, setAssignError] = useState<string | null>(null);
-
   const isAdmin = user?.role === "admin";
-  const isAdminOrManager = user?.role === "admin" || user?.role === "manager";
 
   const reload = () => {
     api
@@ -60,9 +52,6 @@ export default function SchedulesPage() {
 
   useEffect(() => {
     reload();
-    if (isAdminOrManager) {
-      api.get<Employee[]>("/employees").then((r) => setEmployees(r.data));
-    }
   }, [weekStart]);
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(new Date(weekStart), i));
@@ -111,29 +100,6 @@ export default function SchedulesPage() {
     }
   };
 
-  const handleAssign = async () => {
-    if (!assignCell || !assignEmployeeId) return;
-    setAssigning(true);
-    setAssignError(null);
-    try {
-      await api.post("/shift-assignments", {
-        employeeId: assignEmployeeId,
-        shiftId: assignCell.shiftId,
-        workDate: assignCell.dayKey,
-      });
-      setAssignCell(null);
-      setAssignEmployeeId("");
-      reload();
-    } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
-        "Failed to assign";
-      setAssignError(msg);
-    } finally {
-      setAssigning(false);
-    }
-  };
-
   const prevWeek = () =>
     setWeekStart(format(addDays(new Date(weekStart), -7), "yyyy-MM-dd"));
   const nextWeek = () =>
@@ -142,7 +108,7 @@ export default function SchedulesPage() {
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold text-slate-800">Shift Schedule</h1>
+        <h1 className="text-2xl font-bold text-slate-800">Lịch ca làm</h1>
         <div className="flex items-center gap-2">
           {isAdmin && (
             <button
@@ -150,14 +116,14 @@ export default function SchedulesPage() {
               className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
             >
               <Plus className="h-4 w-4" />
-              Create Shift
+              Tạo ca mới
             </button>
           )}
           <button
             onClick={prevWeek}
             className="rounded border px-3 py-2 text-sm hover:bg-slate-100"
           >
-            ← Prev
+            ← Trước
           </button>
           <span className="font-medium text-sm">
             {format(new Date(weekStart), "d MMM")} –{" "}
@@ -167,7 +133,7 @@ export default function SchedulesPage() {
             onClick={nextWeek}
             className="rounded border px-3 py-2 text-sm hover:bg-slate-100"
           >
-            Next →
+            Sau →
           </button>
         </div>
       </div>
@@ -175,19 +141,19 @@ export default function SchedulesPage() {
       {/* Create Shift Form */}
       {showCreateShift && isAdmin && (
         <div className="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-4 font-semibold text-slate-800">New Shift Type</h2>
+          <h2 className="mb-4 font-semibold text-slate-800">Tạo loại ca mới</h2>
           <div className="grid gap-4 sm:grid-cols-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-600">Name *</label>
+              <label className="mb-1 block text-sm font-medium text-slate-600">Tên ca *</label>
               <input
                 value={newShiftName}
                 onChange={(e) => setNewShiftName(e.target.value)}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
-                placeholder="e.g. Night Shift"
+                placeholder="Ví dụ: Ca đêm"
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-600">Start Time</label>
+              <label className="mb-1 block text-sm font-medium text-slate-600">Giờ bắt đầu</label>
               <input
                 type="time"
                 value={newShiftStart}
@@ -196,7 +162,7 @@ export default function SchedulesPage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-600">End Time</label>
+              <label className="mb-1 block text-sm font-medium text-slate-600">Giờ kết thúc</label>
               <input
                 type="time"
                 value={newShiftEnd}
@@ -205,7 +171,7 @@ export default function SchedulesPage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-slate-600">Required Staff</label>
+              <label className="mb-1 block text-sm font-medium text-slate-600">Số nhân viên cần</label>
               <input
                 type="number"
                 min={1}
@@ -221,25 +187,25 @@ export default function SchedulesPage() {
               disabled={savingShift || !newShiftName.trim()}
               className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
             >
-              {savingShift ? "Creating..." : "Create Shift"}
+              {savingShift ? "Đang tạo..." : "Tạo ca"}
             </button>
             <button
               onClick={() => setShowCreateShift(false)}
               className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
             >
-              Cancel
+              Hủy
             </button>
           </div>
         </div>
       )}
 
-      {/* Schedule Table */}
+      {/* Schedule Table - view only, no assign button */}
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full border-collapse">
           <thead>
             <tr>
               <th className="border-b border-slate-200 bg-slate-50 p-3 text-left text-sm font-medium text-slate-600">
-                Shift
+                Ca
               </th>
               {days.map((d) => (
                 <th
@@ -262,7 +228,7 @@ export default function SchedulesPage() {
                 <td className="border-b border-slate-200 p-3">
                   <div className="font-medium text-slate-800">{shift.name}</div>
                   <div className="text-xs text-slate-500">
-                    {shift.startTime}–{shift.endTime} · {shift.requiredStaff} needed
+                    {shift.startTime}–{shift.endTime} · {shift.requiredStaff} cần
                   </div>
                 </td>
                 {days.map((d) => {
@@ -297,20 +263,8 @@ export default function SchedulesPage() {
                         {count < shift.requiredStaff && (
                           <div className="flex items-center gap-1 text-red-600">
                             <AlertTriangle className="h-3 w-3" />
-                            {shift.requiredStaff - count} missing
+                            Thiếu {shift.requiredStaff - count}
                           </div>
-                        )}
-                        {isAdminOrManager && (
-                          <button
-                            onClick={() => {
-                              setAssignCell({ dayKey, shiftId: shift.id });
-                              setAssignEmployeeId("");
-                              setAssignError(null);
-                            }}
-                            className="mt-1 flex w-full items-center justify-center gap-1 rounded border border-dashed border-slate-300 py-0.5 text-slate-400 hover:border-primary-400 hover:bg-primary-50 hover:text-primary-600"
-                          >
-                            <UserPlus className="h-3 w-3" />
-                          </button>
                         )}
                       </div>
                     </td>
@@ -322,69 +276,10 @@ export default function SchedulesPage() {
         </table>
       </div>
 
-      {/* Assign Modal */}
-      {assignCell && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-slate-800">Assign Employee</h3>
-              <button
-                onClick={() => {
-                  setAssignCell(null);
-                  setAssignError(null);
-                }}
-                className="rounded p-1 hover:bg-slate-100"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <p className="mb-3 text-sm text-slate-600">
-              Shift:{" "}
-              <strong>{shifts.find((s) => s.id === assignCell.shiftId)?.name}</strong>
-              {" · Date: "}
-              <strong>{format(new Date(assignCell.dayKey), "EEE d MMM yyyy")}</strong>
-            </p>
-            <select
-              value={assignEmployeeId}
-              onChange={(e) => setAssignEmployeeId(e.target.value)}
-              className="mb-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
-            >
-              <option value="">Select employee...</option>
-              {employees.map((emp) => (
-                <option key={emp.id} value={emp.id}>
-                  {emp.firstName} {emp.lastName}
-                </option>
-              ))}
-            </select>
-            {assignError && (
-              <p className="mb-3 rounded bg-red-50 p-2 text-sm text-red-600">{assignError}</p>
-            )}
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => {
-                  setAssignCell(null);
-                  setAssignError(null);
-                }}
-                className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAssign}
-                disabled={!assignEmployeeId || assigning}
-                className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
-              >
-                {assigning ? "Assigning..." : "Assign"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {shifts.length === 0 && (
         <p className="mt-6 text-center text-slate-500">
-          No shifts defined yet.{" "}
-          {isAdmin && "Click 'Create Shift' to add one."}
+          Chưa có ca làm nào.{" "}
+          {isAdmin && "Nhấn 'Tạo ca mới' để thêm."}
         </p>
       )}
     </div>
