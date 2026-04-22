@@ -69,6 +69,8 @@ model Employee {
   departmentId  String?   @map("department_id")
   positionId    String?   @map("position_id")
   status        EmployeeStatus @default(active)
+  probationStart DateTime? @map("probation_start")
+  probationEnd   DateTime? @map("probation_end")
   baseSalary    Int?      @map("base_salary") // monthly salary in VND
   annualLeaveBalance Int  @default(12) @map("annual_leave_balance")
   createdAt     DateTime  @default(now()) @map("created_at")
@@ -84,6 +86,7 @@ model Employee {
   leaveRequests LeaveRequest[]
   overtimeRequests OvertimeRequest[]
   attendanceCorrectionRequests AttendanceCorrectionRequest[]
+  awards        Award[]
 
   @@map("employees")
 }
@@ -146,6 +149,7 @@ model AttendanceCorrectionRequest {
 
 enum EmployeeStatus {
   active
+  probation
   inactive
   contract_ending_soon
   left
@@ -284,4 +288,18 @@ model HrDocument {
   createdAt    DateTime @default(now()) @map("created_at")
 
   @@map("hr_documents")
+}
+
+model Award {
+  id          String   @id @default(cuid())
+  employeeId  String   @map("employee_id")
+  title       String   // e.g. "Nhân viên xuất sắc nhất"
+  category    String?  // e.g. "Best Employee", "Most Contribution"
+  description String?  @db.Text
+  awardMonth  DateTime @map("award_month") // The month this award is for
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@map("awards")
 }

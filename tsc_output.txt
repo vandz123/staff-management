@@ -1,0 +1,5 @@
+﻿src/components/DashboardCharts.tsx(3,136): error TS2307: Cannot find module 'recharts' or its corresponding type declarations.
+src/components/DashboardCharts.tsx(40,21): error TS7031: Binding element 'name' implicitly has an 'any' type.
+src/components/DashboardCharts.tsx(40,27): error TS7031: Binding element 'value' implicitly has an 'any' type.
+src/components/DashboardCharts.tsx(98,21): error TS7031: Binding element 'name' implicitly has an 'any' type.
+src/components/DashboardCharts.tsx(98,27): error TS7031: Binding element 'value' implicitly has an 'any' type.

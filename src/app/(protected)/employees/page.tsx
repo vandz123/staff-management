@@ -18,6 +18,8 @@ type Employee = {
   address?: string | null;
   dateOfBirth?: string | null;
   contractEndDate?: string | null;
+  probationStart?: string | null;
+  probationEnd?: string | null;
   status: string;
   baseSalary?: number | null;
   department?: { id?: string; name: string } | null;
@@ -30,8 +32,11 @@ type Employee = {
 };
 
 function getEmployeeStatus(emp: Employee, t: (k: string) => string): { label: string; color: string } {
-  if (emp.status === "inactive") {
+  if (emp.status === "inactive" || emp.status === "left") {
     return { label: t("empStatus.resigned"), color: "bg-coral-100 text-coral-700" };
+  }
+  if (emp.status === "probation") {
+    return { label: t("empStatus.probation"), color: "bg-violet-100 text-violet-700" };
   }
   if (emp.contractEndDate) {
     const endDate = new Date(emp.contractEndDate);
@@ -136,6 +141,8 @@ export default function EmployeesPage() {
           departmentId: data.departmentId || null,
           positionId: data.positionId || null,
           status: data.status,
+          probationStart: data.probationStart || null,
+          probationEnd: data.probationEnd || null,
         });
       } else {
         const createLogin = data.createLogin === "on";
@@ -151,6 +158,9 @@ export default function EmployeesPage() {
           departmentId: data.departmentId || null,
           positionId: data.positionId || null,
           baseSalary: data.baseSalary ? Number(data.baseSalary) : undefined,
+          status: data.status || "active",
+          probationStart: data.probationStart || null,
+          probationEnd: data.probationEnd || null,
           role: data.role,
           username: data.username || undefined,
           createLogin,
@@ -173,8 +183,13 @@ export default function EmployeesPage() {
       setEditing(null);
       form.reset();
       api.get<Employee[]>("/employees", { params: { status: "all" } }).then((r) => setEmployees(r.data));
-    } catch (err) {
+    } catch (err: unknown) {
       console.error(err);
+      const message =
+        (err as { response?: { data?: { error?: string; message?: string } } })?.response?.data?.error ||
+        (err as { response?: { data?: { error?: string; message?: string } } })?.response?.data?.message ||
+        "Không thể lưu nhân viên. Vui lòng kiểm tra dữ liệu và thử lại.";
+      alert(message);
     }
   };
 
@@ -207,6 +222,7 @@ export default function EmployeesPage() {
           >
             <option value="all">{t("staff.allStatuses")}</option>
             <option value="active">{t("staff.active")}</option>
+            <option value="probation">{t("empStatus.probation")}</option>
             <option value="inactive">{t("staff.inactive")}</option>
           </select>
           <select
@@ -277,18 +293,26 @@ export default function EmployeesPage() {
               <label className="mb-1 block text-xs text-slate-500">{t("emp.contractEndDate")}</label>
               <input name="contractEndDate" type="date" defaultValue={editing?.contractEndDate?.slice(0, 10) ?? ""} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 focus:ring-1 focus:ring-primary-400 outline-none" />
             </div>
-            <select name="departmentId" className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 focus:ring-1 focus:ring-primary-400 outline-none">
+            <select
+              name="departmentId"
+              defaultValue={editing?.department?.id ?? ""}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 focus:ring-1 focus:ring-primary-400 outline-none"
+            >
               <option value="">{t("emp.selectDepartment")}</option>
               {departments.map((d) => (
-                <option key={d.id} value={d.id} selected={editing?.department?.id === d.id}>
+                <option key={d.id} value={d.id}>
                   {d.name}
                 </option>
               ))}
             </select>
-            <select name="positionId" className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 focus:ring-1 focus:ring-primary-400 outline-none">
+            <select
+              name="positionId"
+              defaultValue={editing?.position?.id ?? ""}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 focus:ring-1 focus:ring-primary-400 outline-none"
+            >
               <option value="">{t("emp.selectPosition")}</option>
               {positions.map((p) => (
-                <option key={p.id} value={p.id} selected={editing?.position?.id === p.id}>
+                <option key={p.id} value={p.id}>
                   {p.name}
                 </option>
               ))}
@@ -321,11 +345,30 @@ export default function EmployeesPage() {
               </>
             )}
             {editing && (
-              <select name="status" className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 focus:ring-1 focus:ring-primary-400 outline-none">
-                <option value="active" selected={editing.status === "active"}>{t("staff.active")}</option>
-                <option value="inactive" selected={editing.status === "inactive"}>{t("staff.inactive")}</option>
+              <select
+                name="status"
+                defaultValue={editing.status}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 focus:ring-1 focus:ring-primary-400 outline-none"
+              >
+                <option value="active">{t("staff.active")}</option>
+                <option value="probation">{t("empStatus.probation")}</option>
+                <option value="inactive">{t("staff.inactive")}</option>
               </select>
             )}
+            {!editing && (
+              <select name="status" className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 focus:ring-1 focus:ring-primary-400 outline-none">
+                <option value="active">{t("staff.active")}</option>
+                <option value="probation">{t("empStatus.probation")}</option>
+              </select>
+            )}
+            <div>
+              <label className="mb-1 block text-xs text-slate-500">{t("emp.probationStart")}</label>
+              <input name="probationStart" type="date" defaultValue={editing?.probationStart?.slice(0, 10) ?? ""} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 focus:ring-1 focus:ring-primary-400 outline-none" />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-slate-500">{t("emp.probationEnd")}</label>
+              <input name="probationEnd" type="date" defaultValue={editing?.probationEnd?.slice(0, 10) ?? ""} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 focus:ring-1 focus:ring-primary-400 outline-none" />
+            </div>
           </div>
           <div className="mt-4 flex gap-2">
             <button type="submit" className="rounded-lg bg-gradient-to-r from-primary-600 to-accent-600 px-4 py-2 text-white shadow-md hover:shadow-lg transition-shadow">
@@ -356,13 +399,14 @@ export default function EmployeesPage() {
               <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("emp.department")}</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("emp.position")}</th>
               <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("emp.status")}</th>
+              <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">{t("emp.probationPeriod")}</th>
               {isAdmin && <th className="px-4 py-3"></th>}
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={isAdmin ? 8 : 7} className="px-4 py-8 text-center text-slate-500">
+                <td colSpan={isAdmin ? 9 : 8} className="px-4 py-8 text-center text-slate-500">
                   {t("staff.noMatch")}
                 </td>
               </tr>
@@ -402,6 +446,19 @@ export default function EmployeesPage() {
                       <span className={cn("rounded-full px-2.5 py-1 text-xs font-medium", empStatus.color)}>
                         {empStatus.label}
                       </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-slate-600">
+                      {emp.probationStart && emp.probationEnd ? (
+                        <span className="text-xs">
+                          {format(new Date(emp.probationStart), "dd/MM/yyyy")} — {format(new Date(emp.probationEnd), "dd/MM/yyyy")}
+                        </span>
+                      ) : emp.probationStart ? (
+                        <span className="text-xs">
+                          {format(new Date(emp.probationStart), "dd/MM/yyyy")} — ...
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
                     </td>
                     {isAdmin && (
                       <td className="px-4 py-3">

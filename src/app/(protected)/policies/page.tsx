@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
@@ -13,8 +13,13 @@ import {
   Upload,
   Download,
   Lock,
-  Filter,
   File,
+  Search,
+  ArrowUpAZ,
+  ArrowDownAZ,
+  SlidersHorizontal,
+  CalendarDays,
+  HardDrive,
 } from "lucide-react";
 
 type PolicyDoc = {
@@ -51,6 +56,14 @@ export default function PoliciesPage() {
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Enhanced filter states
+  const [searchQuery, setSearchQuery] = useState("");
+  const [fileSizeFilter, setFileSizeFilter] = useState<string>("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc" | "none">("none");
+  const [showFilters, setShowFilters] = useState(false);
+
   const isAdmin = user?.role === "admin";
 
   const fetchDocs = () => {
@@ -69,10 +82,60 @@ export default function PoliciesPage() {
   // Get unique categories from docs
   const docCategories = Array.from(new Set(docs.map((d) => d.category).filter((c): c is string => !!c)));
 
-  // Filter docs by active category
-  const filteredDocs = activeCategory === "all"
-    ? docs
-    : docs.filter((d) => d.category === activeCategory);
+  // Apply all filters
+  const filteredDocs = useMemo(() => {
+    let result = [...docs];
+
+    // Category filter
+    if (activeCategory !== "all") {
+      result = result.filter((d) => d.category === activeCategory);
+    }
+
+    // Search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      result = result.filter((d) =>
+        d.title.toLowerCase().includes(query) ||
+        d.fileName?.toLowerCase().includes(query) ||
+        d.content?.toLowerCase().includes(query)
+      );
+    }
+
+    // File size filter
+    if (fileSizeFilter !== "all") {
+      result = result.filter((d) => {
+        const size = d.fileSize || 0;
+        switch (fileSizeFilter) {
+          case "small": return size > 0 && size < 1024 * 1024;
+          case "medium": return size >= 1024 * 1024 && size <= 5 * 1024 * 1024;
+          case "large": return size > 5 * 1024 * 1024;
+          default: return true;
+        }
+      });
+    }
+
+    // Date range filter
+    if (dateFrom) {
+      const from = new Date(dateFrom);
+      from.setHours(0, 0, 0, 0);
+      result = result.filter((d) => new Date(d.createdAt) >= from);
+    }
+    if (dateTo) {
+      const to = new Date(dateTo);
+      to.setHours(23, 59, 59, 999);
+      result = result.filter((d) => new Date(d.createdAt) <= to);
+    }
+
+    // Sort by name
+    if (sortOrder !== "none") {
+      result.sort((a, b) => {
+        const cmp = a.title.localeCompare(b.title, "vi");
+        return sortOrder === "asc" ? cmp : -cmp;
+      });
+    }
+
+    return result;
+  }, [docs, activeCategory, searchQuery, fileSizeFilter, dateFrom, dateTo, sortOrder]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -131,6 +194,17 @@ export default function PoliciesPage() {
     return doc.fileName || (doc.fileUrl && doc.fileUrl.startsWith("/uploads/"));
   };
 
+  const clearFilters = () => {
+    setSearchQuery("");
+    setFileSizeFilter("all");
+    setDateFrom("");
+    setDateTo("");
+    setSortOrder("none");
+    setActiveCategory("all");
+  };
+
+  const hasActiveFilters = searchQuery || fileSizeFilter !== "all" || dateFrom || dateTo || sortOrder !== "none";
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
@@ -148,9 +222,128 @@ export default function PoliciesPage() {
         )}
       </div>
 
+      {/* Search Bar */}
+      <div className="mb-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Tìm kiếm tài liệu theo tên, nội dung..."
+            className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-700 shadow-sm placeholder:text-slate-400 focus:border-primary-400 focus:ring-1 focus:ring-primary-400 outline-none transition-colors"
+          />
+        </div>
+      </div>
+
+      {/* Filter Controls Row */}
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        {/* Toggle advanced filters */}
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+            showFilters || hasActiveFilters
+              ? "bg-primary-100 text-primary-700 border border-primary-200"
+              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+          }`}
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+          Bộ lọc nâng cao
+          {hasActiveFilters && (
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary-600 text-xs text-white">
+              !
+            </span>
+          )}
+        </button>
+
+        {/* Sort button */}
+        <button
+          onClick={() => {
+            setSortOrder((prev) =>
+              prev === "none" ? "asc" : prev === "asc" ? "desc" : "none"
+            );
+          }}
+          className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+            sortOrder !== "none"
+              ? "bg-blue-100 text-blue-700 border border-blue-200"
+              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+          }`}
+        >
+          {sortOrder === "desc" ? (
+            <ArrowDownAZ className="h-4 w-4" />
+          ) : (
+            <ArrowUpAZ className="h-4 w-4" />
+          )}
+          {sortOrder === "none" ? "Sắp xếp A→Z" : sortOrder === "asc" ? "A → Z" : "Z → A"}
+        </button>
+
+        {/* Clear filters */}
+        {hasActiveFilters && (
+          <button
+            onClick={clearFilters}
+            className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+          >
+            <X className="h-4 w-4" />
+            Xóa bộ lọc
+          </button>
+        )}
+      </div>
+
+      {/* Advanced Filter Panel */}
+      {showFilters && (
+        <div className="mb-6 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="grid gap-4 sm:grid-cols-3">
+            {/* File Size Filter */}
+            <div>
+              <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700">
+                <HardDrive className="h-4 w-4 text-slate-400" />
+                Kích thước file
+              </label>
+              <select
+                value={fileSizeFilter}
+                onChange={(e) => setFileSizeFilter(e.target.value)}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 outline-none"
+              >
+                <option value="all">Tất cả</option>
+                <option value="small">&lt; 1 MB</option>
+                <option value="medium">1 - 5 MB</option>
+                <option value="large">&gt; 5 MB</option>
+              </select>
+            </div>
+
+            {/* Date From */}
+            <div>
+              <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700">
+                <CalendarDays className="h-4 w-4 text-slate-400" />
+                Từ ngày
+              </label>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 outline-none"
+              />
+            </div>
+
+            {/* Date To */}
+            <div>
+              <label className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-slate-700">
+                <CalendarDays className="h-4 w-4 text-slate-400" />
+                Đến ngày
+              </label>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-400 outline-none"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Category Filter Tabs */}
       <div className="mb-6 flex flex-wrap items-center gap-2">
-        <Filter className="h-4 w-4 text-slate-400" />
         <button
           onClick={() => setActiveCategory("all")}
           className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
@@ -175,6 +368,14 @@ export default function PoliciesPage() {
           </button>
         ))}
       </div>
+
+      {/* Results count */}
+      {hasActiveFilters && (
+        <p className="mb-4 text-sm text-slate-500">
+          Tìm thấy <span className="font-semibold text-slate-700">{filteredDocs.length}</span> tài liệu
+          {searchQuery && <> cho &ldquo;<span className="font-medium text-primary-600">{searchQuery}</span>&rdquo;</>}
+        </p>
+      )}
 
       {/* Add Form (Admin only) */}
       {showForm && isAdmin && (
@@ -346,7 +547,7 @@ export default function PoliciesPage() {
       ) : filteredDocs.length === 0 ? (
         <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-500 shadow-sm">
           <FileText className="mx-auto mb-3 h-10 w-10 text-slate-300" />
-          <p>{activeCategory === "all" ? "Chưa có tài liệu chính sách nào" : `Chưa có tài liệu trong danh mục "${activeCategory}"`}</p>
+          <p>{searchQuery ? `Không tìm thấy tài liệu cho "${searchQuery}"` : activeCategory === "all" ? "Chưa có tài liệu chính sách nào" : `Chưa có tài liệu trong danh mục "${activeCategory}"`}</p>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

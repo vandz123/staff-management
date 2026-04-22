@@ -39,7 +39,9 @@ export async function PATCH(
     contractEndDate?: Date | null;
     departmentId?: string | null;
     positionId?: string | null;
-    status?: "active" | "inactive";
+    status?: "active" | "inactive" | "probation";
+    probationStart?: Date | null;
+    probationEnd?: Date | null;
   } = {};
   if (body.firstName !== undefined) data.firstName = body.firstName;
   if (body.lastName !== undefined) data.lastName = body.lastName;
@@ -52,6 +54,8 @@ export async function PATCH(
   if (body.departmentId !== undefined) data.departmentId = body.departmentId;
   if (body.positionId !== undefined) data.positionId = body.positionId;
   if (body.status !== undefined) data.status = body.status;
+  if (body.probationStart !== undefined) data.probationStart = body.probationStart ? new Date(body.probationStart) : null;
+  if (body.probationEnd !== undefined) data.probationEnd = body.probationEnd ? new Date(body.probationEnd) : null;
 
   const employee = await prisma.employee.update({
     where: { id },

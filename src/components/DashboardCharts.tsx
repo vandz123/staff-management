@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, type PieLabelRenderProps } from "recharts";
 
 type ChartProps = {
   data: any[];
@@ -37,7 +37,7 @@ export function EmployeeStatusChart({ data }: ChartProps) {
           cx="50%"
           cy="50%"
           labelLine={false}
-          label={({ name, value }) => `${name}: ${value}`}
+          label={(props: PieLabelRenderProps) => `${props.name ?? ''}: ${props.value}`}
           outerRadius={80}
           fill="#8884d8"
           dataKey="value"
@@ -95,7 +95,7 @@ export function LeaveChart({ data }: ChartProps) {
           cx="50%"
           cy="50%"
           labelLine={false}
-          label={({ name, value }) => `${name}: ${value}`}
+          label={(props: PieLabelRenderProps) => `${props.name ?? ''}: ${props.value}`}
           outerRadius={80}
           fill="#8884d8"
           dataKey="value"

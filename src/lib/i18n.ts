@@ -139,9 +139,13 @@ export const translations: Record<Locale, Record<string, string>> = {
     "emp.cancel": "Cancel",
     "emp.markInactive": "Mark inactive",
     "emp.confirmInactive": "Mark {name} as inactive?",
+    "emp.probationStart": "Probation Start",
+    "emp.probationEnd": "Probation End",
+    "emp.probationPeriod": "Probation Period",
 
     // Employee Status
     "empStatus.working": "Working",
+    "empStatus.probation": "Probation",
     "empStatus.expiringSoon": "Contract Expiring",
     "empStatus.resigned": "Resigned",
 
@@ -187,6 +191,32 @@ export const translations: Record<Locale, Record<string, string>> = {
     "staff.noProfile": "No staff profile linked to this account.",
     "staff.contactHR": "Please contact HR or an administrator so they can link your login account to an employee profile.",
     "staff.todayAttendance": "Today",
+
+    // Awards
+    "nav.awards": "Awards",
+    "awards.title": "Awards & Contributions",
+    "awards.subtitle": "Recognize outstanding employees each month",
+    "awards.create": "Create Award",
+    "awards.createNew": "Create New Award",
+    "awards.history": "History",
+    "awards.allHistory": "All Award History",
+    "awards.noHistory": "No award history yet.",
+    "awards.monthlyRecognition": "Monthly Recognition",
+    "awards.employeesRecognized": "employees recognized",
+    "awards.selectEmployee": "Select Employee",
+    "awards.chooseEmployee": "Choose an employee...",
+    "awards.awardTitle": "Award Title",
+    "awards.titlePlaceholder": "e.g. Best Employee of the Month",
+    "awards.category": "Category",
+    "awards.selectCategory": "Select category",
+    "awards.description": "Description",
+    "awards.descriptionPlaceholder": "Describe why this employee deserves this award...",
+    "awards.employee": "Employee",
+    "awards.month": "Month",
+    "awards.saving": "Saving...",
+    "awards.save": "Save Award",
+    "awards.noAwards": "No awards this month",
+    "awards.noAwardsDesc": "Create an award to recognize outstanding employees.",
   },
   vi: {
     // Sidebar / Layout
@@ -326,9 +356,13 @@ export const translations: Record<Locale, Record<string, string>> = {
     "emp.cancel": "Hủy",
     "emp.markInactive": "Đánh dấu nghỉ việc",
     "emp.confirmInactive": "Đánh dấu {name} nghỉ việc?",
+    "emp.probationStart": "Ngày bắt đầu thử việc",
+    "emp.probationEnd": "Ngày kết thúc thử việc",
+    "emp.probationPeriod": "Thời gian thử việc",
 
     // Employee Status
     "empStatus.working": "Đang Làm",
+    "empStatus.probation": "Thử Việc",
     "empStatus.expiringSoon": "Sắp Hết HĐ",
     "empStatus.resigned": "Đã Nghỉ",
 
@@ -374,6 +408,32 @@ export const translations: Record<Locale, Record<string, string>> = {
     "staff.noProfile": "Chưa liên kết hồ sơ nhân viên với tài khoản này.",
     "staff.contactHR": "Vui lòng liên hệ HR hoặc quản trị viên để liên kết tài khoản với hồ sơ nhân viên.",
     "staff.todayAttendance": "Hôm nay",
+
+    // Awards
+    "nav.awards": "Giải Thưởng",
+    "awards.title": "Giải Thưởng & Cống Hiến",
+    "awards.subtitle": "Ghi nhận nhân viên xuất sắc hàng tháng",
+    "awards.create": "Tạo Giải Thưởng",
+    "awards.createNew": "Tạo Giải Thưởng Mới",
+    "awards.history": "Lịch Sử",
+    "awards.allHistory": "Lịch Sử Giải Thưởng",
+    "awards.noHistory": "Chưa có lịch sử giải thưởng.",
+    "awards.monthlyRecognition": "Vinh Danh Tháng",
+    "awards.employeesRecognized": "nhân viên được vinh danh",
+    "awards.selectEmployee": "Chọn Nhân Viên",
+    "awards.chooseEmployee": "Chọn nhân viên...",
+    "awards.awardTitle": "Danh Hiệu",
+    "awards.titlePlaceholder": "VD: Nhân viên xuất sắc nhất tháng",
+    "awards.category": "Hạng Mục",
+    "awards.selectCategory": "Chọn hạng mục",
+    "awards.description": "Mô Tả",
+    "awards.descriptionPlaceholder": "Mô tả lý do nhân viên này xứng đáng nhận giải thưởng...",
+    "awards.employee": "Nhân Viên",
+    "awards.month": "Tháng",
+    "awards.saving": "Đang lưu...",
+    "awards.save": "Lưu Giải Thưởng",
+    "awards.noAwards": "Chưa có giải thưởng tháng này",
+    "awards.noAwardsDesc": "Tạo giải thưởng để ghi nhận nhân viên xuất sắc.",
   },
 };
 

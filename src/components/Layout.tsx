@@ -21,6 +21,7 @@ import {
   FileText,
   Sparkles,
   GraduationCap,
+  Trophy,
 } from "lucide-react";
 
 type NavItem = {
@@ -52,6 +53,7 @@ const navItems: (NavItem | NavGroup)[] = [
     ],
   },
   { href: "/trainings", labelKey: "nav.training", icon: GraduationCap },
+  { href: "/awards", labelKey: "nav.awards", icon: Trophy },
   { href: "/policies", labelKey: "nav.policies", icon: FileText },
   { href: "/gani", labelKey: "nav.gani", icon: Sparkles },
 ];
